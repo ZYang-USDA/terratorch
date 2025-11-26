@@ -29,6 +29,7 @@ def to_segmentation_prediction(y: ModelOutput) -> Tensor:
 
 def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -> nn.Module:
     if loss == "ce":
+        ignore_index = ignore_index if ignore_index is not None else -100  # CrossEntropyLoss cannot handle NoneTypes
         return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
     elif loss == "jaccard":
         if ignore_index is not None:
