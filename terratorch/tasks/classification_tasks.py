@@ -4,7 +4,7 @@ import lightning
 import matplotlib.pyplot as plt
 import torch
 from lightning.pytorch.callbacks import Callback
-from segmentation_models_pytorch.losses import FocalLoss, JaccardLoss
+import segmentation_models_pytorch as smp
 from functools import partial
 from torch import Tensor, nn
 from torchgeo.datasets.utils import unbind_samples
@@ -25,15 +25,15 @@ def to_class_prediction(y: ModelOutput) -> Tensor:
     return y_hat.argmax(dim=1)
 
 
-def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -> nn.Module:
+def init_loss(loss: str, class_weights: list = None) -> nn.Module:
     if loss == "ce":
-        return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
+        return nn.CrossEntropyLoss(weight=class_weights)
     elif loss == "bce":
         return  nn.BCEWithLogitsLoss()
     elif loss == "jaccard":
-        return  JaccardLoss(mode="multiclass")
+        return  smp.losses.JaccardLoss(mode="multiclass")
     elif loss == "focal":
-        return  FocalLoss(mode="multiclass", normalized=True)
+        return  smp.losses.FocalLoss(mode="multiclass", normalized=True)
     else:
         raise ValueError(f"Loss type '{loss}' is not valid. Only 'ce', 'bce', 'jaccard', or 'focal' supported.")
 
@@ -101,7 +101,7 @@ class ClassificationTask(TerraTorchTask):
             class_weights (Union[list[float], None], optional): List of class weights to be applied to the loss.
             class_weights (list[float] | None, optional): List of class weights to be applied to the loss.
                 Defaults to None.
-            ignore_index (int | None, optional): Label to ignore in the loss computation. Defaults to None.
+            ignore_index (int | None, optional): Argument is deprecated and will be removed in future versions.
             lr (float, optional): Learning rate to be used. Defaults to 0.001.
             optimizer (str | None, optional): Name of optimizer class from torch.optim to be used.
                 If None, will use Adam. Defaults to None. Overriden by config / cli specification through LightningCLI.
@@ -158,6 +158,9 @@ class ClassificationTask(TerraTorchTask):
         """
         loss = self.hparams["loss"]
         ignore_index = self.hparams["ignore_index"]
+        if ignore_index is not None:
+            warnings.warn("'ignore_index' has no effect for classification tasks and will be removed in the future.",
+                          DeprecationWarning)
 
         class_weights = (
             torch.Tensor(self.hparams["class_weights"]) if self.hparams["class_weights"] is not None else None
@@ -165,19 +168,19 @@ class ClassificationTask(TerraTorchTask):
 
         if isinstance(loss, str):
             # Single loss
-            self.criterion = init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
+            self.criterion = init_loss(loss, class_weights=class_weights)
         elif isinstance(loss, nn.Module):
             # Custom loss
             self.criterion = loss
         elif isinstance(loss, list):
             # List of losses with equal weights
-            losses = {loss: init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
+            losses = {loss: init_loss(loss, class_weights=class_weights)
                       for loss in loss}
             self.criterion = CombinedLoss(losses=losses)
         elif isinstance(loss, dict):
             # Equal weighting of losses
             loss, weight = list(loss.keys()), list(loss.values())
-            losses = {loss: init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
+            losses = {loss: init_loss(loss, class_weights=class_weights)
                       for loss in loss}
             self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
@@ -188,39 +191,32 @@ class ClassificationTask(TerraTorchTask):
     def configure_metrics(self) -> None:
         """Initialize the performance metrics."""
         num_classes: int = self.hparams["model_args"]["num_classes"]
-        ignore_index: int = self.hparams["ignore_index"]
         class_names = self.hparams["class_names"]
         metrics = MetricCollection(
             {
                 "Accuracy": MulticlassAccuracy(
                     num_classes=num_classes,
-                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Accuracy_Micro": MulticlassAccuracy(
                     num_classes=num_classes,
-                    ignore_index=ignore_index,
                     average="micro",
                 ),
                 "F1_Score": MulticlassF1Score(
                     num_classes=num_classes,
-                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Precision": MulticlassPrecision(
                     num_classes=num_classes,
-                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Recall": MulticlassRecall(
                     num_classes=num_classes,
-                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Class_Accuracy": ClasswiseWrapper(
                     MulticlassAccuracy(
                         num_classes=num_classes,
-                        ignore_index=ignore_index,
                         average=None,
                     ),
                     labels=class_names,
@@ -229,7 +225,6 @@ class ClassificationTask(TerraTorchTask):
                 "Class_F1": ClasswiseWrapper(
                     MulticlassF1Score(
                         num_classes=num_classes,
-                        ignore_index=ignore_index,
                         average=None,
                     ),
                     labels=class_names,

@@ -3,6 +3,7 @@ from functools import partial
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
+import segmentation_models_pytorch as smp
 from torchmetrics import MetricCollection
 from torchmetrics.classification import (
     MultilabelAccuracy,
@@ -41,15 +42,14 @@ def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -
     elif loss == "balanced_bce":
         return _balanced_binary_cross_entropy_with_logits
     elif loss == "ce":
+        ignore_index = ignore_index if ignore_index is not None else -100  # CrossEntropyLoss cannot handle NoneTypes
         return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
-    elif loss == "bce":
-        return  nn.BCEWithLogitsLoss()
     elif loss == "jaccard":
-        return  JaccardLoss(mode="multiclass")
+        return  smp.losses.JaccardLoss(mode="multilabel")
     elif loss == "focal":
-        return  FocalLoss(mode="multiclass", normalized=True)
+        return  smp.losses.FocalLoss(mode="multilabel", normalized=True, ignore_index=ignore_index)
     else:
-        raise ValueError(f"Loss type '{loss}' is not valid. Only 'bce', 'balanced_bce', 'ce', 'bce', 'jaccard', or "
+        raise ValueError(f"Loss type '{loss}' is not valid. Only 'bce', 'balanced_bce', 'ce', 'jaccard', or "
                          f"'focal' supported.")
 
 
