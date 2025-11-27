@@ -38,15 +38,21 @@ def _balanced_binary_cross_entropy_with_logits(outputs: Tensor, targets: Tensor)
 
 def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -> nn.Module:
     if loss == "bce":
-        return nn.BCEWithLogitsLoss()
+        if ignore_index: warnings.warn("ignore_index not supported for bce loss.")
+        return nn.BCEWithLogitsLoss(weight=class_weights)
     elif loss == "balanced_bce":
+        if ignore_index is not None: warnings.warn("ignore_index not supported for balanced_bce loss.")
+        if class_weights is not None: warnings.warn("class_weights not supported for balanced_bce loss.")
         return _balanced_binary_cross_entropy_with_logits
     elif loss == "ce":
         ignore_index = ignore_index if ignore_index is not None else -100  # CrossEntropyLoss cannot handle NoneTypes
         return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
     elif loss == "jaccard":
+        if ignore_index is not None: warnings.warn("ignore_index not supported for jaccard loss.")
+        if class_weights is not None: warnings.warn("class_weights not supported for jaccard loss.")
         return  smp.losses.JaccardLoss(mode="multilabel")
     elif loss == "focal":
+        if class_weights is not None: warnings.warn("class_weights not supported for focal loss.")
         return  smp.losses.FocalLoss(mode="multilabel", normalized=True, ignore_index=ignore_index)
     else:
         raise ValueError(f"Loss type '{loss}' is not valid. Only 'bce', 'balanced_bce', 'ce', 'jaccard', or "
@@ -80,7 +86,7 @@ class MultiLabelClassificationTask(ClassificationTask):
                       for loss in loss}
             self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
-            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, list, or "
+            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, nn.Module, list, or "
                              f"dict[name, weights].")
 
     def configure_metrics(self) -> None:

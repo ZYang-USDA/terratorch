@@ -25,15 +25,20 @@ def to_class_prediction(y: ModelOutput) -> Tensor:
     return y_hat.argmax(dim=1)
 
 
-def init_loss(loss: str, class_weights: list = None) -> nn.Module:
+def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -> nn.Module:
     if loss == "ce":
-        return nn.CrossEntropyLoss(weight=class_weights)
+        ignore_index = ignore_index if ignore_index is not None else -100  # CrossEntropyLoss cannot handle NoneTypes
+        return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
     elif loss == "bce":
-        return  nn.BCEWithLogitsLoss()
+        if ignore_index is not None: warnings.warn("ignore_index not supported for bce loss.")
+        return  nn.BCEWithLogitsLoss(weight=class_weights)
     elif loss == "jaccard":
+        if ignore_index is not None: warnings.warn("ignore_index not supported for jaccard loss.")
+        if class_weights is not None: warnings.warn("class_weights not supported for jaccard loss.")
         return  smp.losses.JaccardLoss(mode="multiclass")
     elif loss == "focal":
-        return  smp.losses.FocalLoss(mode="multiclass", normalized=True)
+        if class_weights is not None: warnings.warn("class_weights not supported for focal loss.")
+        return  smp.losses.FocalLoss(mode="multiclass", normalized=True, ignore_index=ignore_index)
     else:
         raise ValueError(f"Loss type '{loss}' is not valid. Only 'ce', 'bce', 'jaccard', or 'focal' supported.")
 
@@ -101,7 +106,9 @@ class ClassificationTask(TerraTorchTask):
             class_weights (Union[list[float], None], optional): List of class weights to be applied to the loss.
             class_weights (list[float] | None, optional): List of class weights to be applied to the loss.
                 Defaults to None.
-            ignore_index (int | None, optional): Argument is deprecated and will be removed in future versions.
+            ignore_index (int | None, optional): Label to ignore in the loss computation. Using ignore_index for
+                classification is not recommended as these samples are ignored. It is computational more efficient to
+                clean the dataset. Defaults to None.
             lr (float, optional): Learning rate to be used. Defaults to 0.001.
             optimizer (str | None, optional): Name of optimizer class from torch.optim to be used.
                 If None, will use Adam. Defaults to None. Overriden by config / cli specification through LightningCLI.
@@ -158,9 +165,6 @@ class ClassificationTask(TerraTorchTask):
         """
         loss = self.hparams["loss"]
         ignore_index = self.hparams["ignore_index"]
-        if ignore_index is not None:
-            warnings.warn("'ignore_index' has no effect for classification tasks and will be removed in the future.",
-                          DeprecationWarning)
 
         class_weights = (
             torch.Tensor(self.hparams["class_weights"]) if self.hparams["class_weights"] is not None else None
@@ -168,23 +172,23 @@ class ClassificationTask(TerraTorchTask):
 
         if isinstance(loss, str):
             # Single loss
-            self.criterion = init_loss(loss, class_weights=class_weights)
+            self.criterion = init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
         elif isinstance(loss, nn.Module):
             # Custom loss
             self.criterion = loss
         elif isinstance(loss, list):
             # List of losses with equal weights
-            losses = {loss: init_loss(loss, class_weights=class_weights)
+            losses = {loss: init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
                       for loss in loss}
             self.criterion = CombinedLoss(losses=losses)
         elif isinstance(loss, dict):
             # Equal weighting of losses
             loss, weight = list(loss.keys()), list(loss.values())
-            losses = {loss: init_loss(loss, class_weights=class_weights)
+            losses = {loss: init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
                       for loss in loss}
             self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
-            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, list, or "
+            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, nn.Module, list, or "
                              f"dict[name, weights].")
 
 

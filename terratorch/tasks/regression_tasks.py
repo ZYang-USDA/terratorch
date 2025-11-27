@@ -282,7 +282,7 @@ class PixelwiseRegressionTask(TerraTorchTask):
                       for loss in loss}
             self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
-            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, list, or "
+            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, nn.Module, list, or "
                              f"dict[name, weights].")
 
 
