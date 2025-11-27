@@ -209,7 +209,7 @@ class PixelwiseRegressionTask(TerraTorchTask):
             freeze_backbone (bool, optional): Whether to freeze the backbone. Defaults to False.
             freeze_decoder (bool, optional): Whether to freeze the decoder. Defaults to False.
             freeze_head (bool, optional): Whether to freeze the segmentation head. Defaults to False.
-            plot_on_val (bool | int, optional): Whether to plot visualizations on validation.
+            plot_on_val (bool | int, optional): Whether to plot visualizations on validation and in test.
                 If true, log every epoch. Defaults to 10. If int, will plot every plot_on_val epochs.
             tiled_inference_parameters (dict | None, optional): Inference parameters
                 used to determine if inference is done on the whole image or through tiling.
@@ -240,7 +240,8 @@ class PixelwiseRegressionTask(TerraTorchTask):
             task="regression", 
             tiled_inference_on_testing=tiled_inference_on_testing,
             tiled_inference_on_validation=tiled_inference_on_validation,
-            path_to_record_metrics=path_to_record_metrics
+            path_to_record_metrics=path_to_record_metrics,
+            plot_on_val=plot_on_val,
             )
 
         if model:
@@ -253,7 +254,6 @@ class PixelwiseRegressionTask(TerraTorchTask):
             self.test_loss_handler.append(LossHandler(metrics.prefix))
         self.val_loss_handler = LossHandler(self.val_metrics.prefix)
         self.monitor = f"{self.val_metrics.prefix}loss"
-        self.plot_on_val = int(plot_on_val)
 
     def configure_losses(self) -> None:
         """Initialize the loss criterion.
@@ -358,28 +358,8 @@ class PixelwiseRegressionTask(TerraTorchTask):
         self.val_metrics.update(y_hat, y)
 
         if self._do_plot_samples(batch_idx):
-            try:
-                datamodule = self.trainer.datamodule
-                batch["prediction"] = y_hat
-                if isinstance(batch["image"], dict):
-                    rgb_modality = getattr(datamodule, 'rgb_modality', None) or list(batch["image"].keys())[0]
-                    batch["image"] = batch["image"][rgb_modality]
-                for key in ["image", "mask", "prediction"]:
-                    batch[key] = batch[key].cpu()
-                sample = unbind_samples(batch)[0]
-                fig = datamodule.val_dataset.plot(sample)
-                if fig:
-                    summary_writer = self.logger.experiment
-                    if hasattr(summary_writer, "add_figure"):
-                        summary_writer.add_figure(f"image/{batch_idx}", fig, global_step=self.global_step)
-                    elif hasattr(summary_writer, "log_figure"):
-                        summary_writer.log_figure(
-                            self.logger.run_id, fig, f"epoch_{self.current_epoch}_{batch_idx}.png"
-                        )
-            except ValueError:
-                pass
-            finally:
-                plt.close()
+            batch["prediction"] = y_hat
+            self.plot_sample(batch, batch_idx)
 
     def test_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         """Compute the test loss and additional metrics.
@@ -411,6 +391,10 @@ class PixelwiseRegressionTask(TerraTorchTask):
         self.test_metrics[dataloader_idx].update(y_hat, y)
 
         self.record_metrics(dataloader_idx, y_hat, y)
+
+        if self._do_plot_samples(batch_idx):
+            batch["prediction"] = y_hat
+            self.plot_sample(batch, batch_idx)
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Tensor:
         """Compute the predicted class probabilities.

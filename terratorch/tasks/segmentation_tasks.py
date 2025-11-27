@@ -122,8 +122,8 @@ class SemanticSegmentationTask(TerraTorchTask):
             freeze_backbone (bool, optional): Whether to freeze the backbone. Defaults to False.
             freeze_decoder (bool, optional): Whether to freeze the decoder. Defaults to False.
             freeze_head (bool, optional): Whether to freeze the segmentation head. Defaults to False.
-            plot_on_val (bool | int, optional): Whether to plot visualizations on validation.
-            If true, log every epoch. Defaults to 10. If int, will plot every plot_on_val epochs.
+            plot_on_val (bool | int, optional): Whether to plot visualizations on validation and in test.
+                If true, log every epoch. Defaults to 10. If int, will plot every plot_on_val epochs.
             class_names (list[str] | None, optional): List of class names passed to metrics for better naming.
                 Defaults to numeric ordering.
             tiled_inference_parameters (dict | None, optional): Inference parameters
@@ -160,6 +160,7 @@ class SemanticSegmentationTask(TerraTorchTask):
             tiled_inference_on_testing=tiled_inference_on_testing,
             tiled_inference_on_validation=tiled_inference_on_validation,
             path_to_record_metrics=path_to_record_metrics,
+            plot_on_val=plot_on_val,
         )
 
         if model is not None:
@@ -172,7 +173,6 @@ class SemanticSegmentationTask(TerraTorchTask):
             self.test_loss_handler.append(LossHandler(metrics.prefix))
         self.val_loss_handler = LossHandler(self.val_metrics.prefix)
         self.monitor = f"{self.val_metrics.prefix}loss"
-        self.plot_on_val = int(plot_on_val)
         self.output_on_inference = output_on_inference
 
         # When the user decides to use `output_most_probable` as `False` in
@@ -373,48 +373,8 @@ class SemanticSegmentationTask(TerraTorchTask):
         self.record_metrics(dataloader_idx, y_hat_hard, y)
 
         if self._do_plot_samples(batch_idx):
-            try:
-                datamodule = self.trainer.datamodule
-                batch["prediction"] = y_hat_hard
-
-                if isinstance(batch["image"], dict):
-                    if hasattr(datamodule, "rgb_modality"):
-                        # Select RGB modality for multimodal inputs
-                        batch["image"] = batch["image"][datamodule.rgb_modality]
-                    else:
-                        # Move modalities to main dict for unbind
-                        for k, v in batch["image"].items():
-                            batch[k] = v
-                        _ = batch.pop("image")
-
-                for key, value in batch.items():
-                    if isinstance(value, torch.Tensor):
-                        batch[key] = value.cpu()
-
-                sample = unbind_samples(batch)[0]
-                fig = datamodule.test_dataset.plot(sample) if hasattr(datamodule.test_dataset, "plot") else datamodule.plot(sample, "test")
-                if fig:
-                    summary_writer = self.logger.experiment
-                    caption = batch.get("filename", batch_idx)
-                    if isinstance(caption, dict):
-                        caption = list(caption.values())[0]
-                    if isinstance(caption, list):
-                        caption = caption[0]
-                    caption = str(caption).rsplit('.')[0]
-                    if hasattr(summary_writer, "add_figure"):
-                        summary_writer.add_figure(f"image/test_{caption}", fig)
-                    elif hasattr(summary_writer, "log_figure"):
-                        summary_writer.log_figure(
-                            self.logger.run_id, fig, f"test_{caption}.png"
-                        )
-                    elif hasattr(self.logger, "log_image"):
-                        # Log image to WandB
-                        self.logger.log_image(key="samples", images=[fig],
-                                              caption=[f"test_{caption}"])
-            except ValueError:
-                pass
-            finally:
-                plt.close()
+            batch["prediction"] = y_hat_hard
+            self.plot_sample(batch, batch_idx)
 
     def validation_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         """Compute the validation loss and additional metrics.
@@ -436,48 +396,8 @@ class SemanticSegmentationTask(TerraTorchTask):
         self.val_metrics.update(y_hat_hard, y)
 
         if self._do_plot_samples(batch_idx):
-            try:
-                datamodule = self.trainer.datamodule
-                batch["prediction"] = y_hat_hard
-
-                if isinstance(batch["image"], dict):
-                    if hasattr(datamodule, "rgb_modality"):
-                        # Select RGB modality for multimodal inputs
-                        batch["image"] = batch["image"][datamodule.rgb_modality]
-                    else:
-                        # Move modalities to main dict for unbind
-                        for k, v in batch["image"].items():
-                            batch[k] = v
-                        _ = batch.pop("image")
-
-                for key, value in batch.items():
-                    if isinstance(value, torch.Tensor):
-                        batch[key] = value.cpu()
-
-                sample = unbind_samples(batch)[0]
-                fig = datamodule.val_dataset.plot(sample) if hasattr(datamodule.val_dataset, "plot") else datamodule.plot(sample, "val") 
-                if fig:
-                    summary_writer = self.logger.experiment
-                    caption = batch.get("filename", batch_idx)
-                    if isinstance(caption, dict):
-                        caption = list(caption.values())[0]
-                    if isinstance(caption, list):
-                        caption = caption[0]
-                    caption = str(caption).rsplit('.')[0]
-                    if hasattr(summary_writer, "add_figure"):
-                        summary_writer.add_figure(f"image/{caption}", fig, global_step=self.global_step)
-                    elif hasattr(summary_writer, "log_figure"):
-                        summary_writer.log_figure(
-                            self.logger.run_id, fig, f"epoch_{self.current_epoch}_{batch_idx}.png"
-                        )
-                    elif hasattr(self.logger, "log_image"):
-                        # Log image to WandB
-                        self.logger.log_image(key="samples", images=[fig],
-                            caption=[f"step{self.global_step}_{caption}"])
-            except ValueError:
-                pass
-            finally:
-                plt.close()
+            batch["prediction"] = y_hat_hard
+            self.plot_sample(batch, batch_idx)
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Tensor:
         """Compute the predicted class probabilities.
