@@ -32,7 +32,7 @@ data:
     num_workers: 4
     train_transform:
         - class_path: albumentations.pytorch.transforms.ToTensorV2
-        init_args: {}
+          init_args: {}
     dataset_bands:
       - "band_1"
       - "band_2"
