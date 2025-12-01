@@ -41,7 +41,8 @@ data:
           border_mode: 0
           value: 0
           p: 0.5
-      - class_path: ToTensorV2
+      - class_path: albumentations.pytorch.transforms.ToTensorV2
+        init_args: {}
     dataset_bands:
       - [0, 11]
     output_bands:
@@ -83,10 +84,7 @@ model:
       decoder: UperNetDecoder
       pretrained: false
       backbone: prithvi_swin_B
-        #backbone_pretrained_cfg_overlay:
-        #file: tests/prithvi_swin_B.pt
       backbone_drop_path_rate: 0.3
-      # backbone_window_size: 8
       decoder_channels: 256
       in_channels: 6
       bands:

@@ -31,7 +31,8 @@ data:
     batch_size: 2
     num_workers: 4
     train_transform:
-      - class_path: ToTensorV2
+        - class_path: albumentations.pytorch.transforms.ToTensorV2
+        init_args: {}
     dataset_bands:
       - "band_1"
       - "band_2"
