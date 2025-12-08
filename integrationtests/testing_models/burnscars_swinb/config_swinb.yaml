@@ -50,12 +50,10 @@ data:
     test_data_root: /data/geodata-060bbc44822a11efb3260a580a830dad/training_data
     test_label_data_root: /data/geodata-060bbc44822a11efb3260a580a830dad/labels
     test_split: /data/geodata-060bbc44822a11efb3260a580a830dad/split_files/test_data.txt
-    test_transform:
-    - class_path: albumentations.pytorch.ToTensorV2
+    test_transform: 
+    - class_path: albumentations.pytorch.transforms.ToTensorV2
       init_args:
-        always_apply: true
-        p: 1.0
-        transpose_mask: false
+        {}
     train_data_root: /data/geodata-060bbc44822a11efb3260a580a830dad/training_data
     train_label_data_root: /data/geodata-060bbc44822a11efb3260a580a830dad/labels
     train_split: /data/geodata-060bbc44822a11efb3260a580a830dad/split_files/train_data.txt

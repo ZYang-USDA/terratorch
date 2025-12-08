@@ -21,6 +21,15 @@ from terratorch.registry import BACKBONE_REGISTRY
 from terratorch.tasks import InferenceTask
 
 
+# Allow overriding default test asset locations via environment variables.
+TEST_MODELS_ROOT = os.getenv(
+    "TERRATORCH_TEST_MODELS_ROOT",
+    "/dccstor/terratorch/shared/integrationtests/testing_models",
+)
+TMP_ROOT = os.getenv("TERRATORCH_TMP_ROOT", "/dccstor/terratorch/tmp")
+TEST_CHECKPOINTS_ROOT = os.getenv("TERRATORCH_TEST_CHECKPOINTS_ROOT", TEST_MODELS_ROOT)
+
+
 @pytest.mark.parametrize(
     "model_name",
     [
@@ -157,10 +166,10 @@ def run_inference(config, checkpoint, image):
 )
 def test_buildings_predict(buildings_image, model_name):
     # Models trained with an earlier terratorch version
-    config_path = (
-        f"/dccstor/terratorch/shared/integrationtests/testing_models/buildings_{model_name}/config_{model_name}.yaml"
-    )
-    checkpoint_path = f"/dccstor/terratorch/shared/integrationtests/testing_models/buildings_{model_name}/checkpoint_{model_name}.ckpt"
+    model_dir = os.path.join(TEST_MODELS_ROOT, f"buildings_{model_name}")
+    config_path = os.path.join(model_dir, f"config_{model_name}.yaml")
+    checkpoint_dir = os.path.join(TEST_CHECKPOINTS_ROOT, f"buildings_{model_name}")
+    checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_{model_name}.ckpt")
 
     preds = run_inference(config=config_path, checkpoint=checkpoint_path, image=buildings_image)
 
@@ -171,10 +180,10 @@ def test_buildings_predict(buildings_image, model_name):
 @pytest.mark.parametrize("model_name", ["terramind_base"])
 def test_floods_predict(floods_image, model_name):
     # Terramind models trained with tt version==1.1
-    config_path = (
-        f"/dccstor/terratorch/shared/integrationtests/testing_models/floods_{model_name}/config_{model_name}.yaml"
-    )
-    checkpoint_path = f"/dccstor/terratorch/shared/integrationtests/testing_models/floods_{model_name}/checkpoint_{model_name}.ckpt"
+    model_dir = os.path.join(TEST_MODELS_ROOT, f"floods_{model_name}")
+    config_path = os.path.join(model_dir, f"config_{model_name}.yaml")
+    checkpoint_dir = os.path.join(TEST_CHECKPOINTS_ROOT, f"floods_{model_name}")
+    checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_{model_name}.ckpt")
 
     preds = run_inference(config=config_path, checkpoint=checkpoint_path, image=floods_image)
 
@@ -186,10 +195,10 @@ def test_floods_predict(floods_image, model_name):
 @pytest.mark.parametrize("model_name", ["swinb", "swinl"])
 def test_burnscars_predict(burnscars_image, model_name):
     # Models trained with an earlier terratorch version
-    config_path = (
-        f"/dccstor/terratorch/shared/integrationtests/testing_models/burnscars_{model_name}/config_{model_name}.yaml"
-    )
-    checkpoint_path = f"/dccstor/terratorch/shared/integrationtests/testing_models/burnscars_{model_name}/checkpoint_{model_name}.ckpt"
+    model_dir = os.path.join(TEST_MODELS_ROOT, f"burnscars_{model_name}")
+    config_path = os.path.join(model_dir, f"config_{model_name}.yaml")
+    checkpoint_dir = os.path.join(TEST_CHECKPOINTS_ROOT, f"burnscars_{model_name}")
+    checkpoint_path = os.path.join(checkpoint_dir, f"checkpoint_{model_name}.ckpt")
 
     preds = run_inference(config=config_path, checkpoint=checkpoint_path, image=burnscars_image)
 
@@ -205,7 +214,7 @@ def test_surya():
     if not os.path.isdir("experiment"):
         os.mkdir("experiment")
 
-    root_dir = "/dccstor/terratorch/tmp/experiment"
+    root_dir = os.path.join(TMP_ROOT, "experiment")
     # Downloading validation data
     snapshot_download(repo_id="nasa-ibm-ai4science/Surya-1.0_validation_data", repo_type="dataset", local_dir=root_dir)
 
@@ -310,9 +319,9 @@ def test_surya():
 @pytest.mark.parametrize("config_name", ["smp_resnet34", "enc_dec_resnet34"])
 def test_current_terratorch_version_buildings_predict(config_name, buildings_image):
     # Models trained with current terratorch version
-    config_path = f"/dccstor/terratorch/tmp/{config_name}/lightning_logs/version_0/config_deploy.yaml"
+    config_path = os.path.join(TMP_ROOT, config_name, "lightning_logs", "version_0", "config_deploy.yaml")
 
-    pattern = os.path.join(f"/dccstor/terratorch/tmp/{config_name}/", "best-state_dict-epoch=*.ckpt")
+    pattern = os.path.join(TMP_ROOT, config_name, "best-state_dict-epoch=*.ckpt")
     checkpoint_path = glob.glob(pattern)[0]
 
     # deploy_config_path = create_deploy_config(config_path)
@@ -328,9 +337,9 @@ def test_current_terratorch_version_buildings_predict(config_name, buildings_ima
 @pytest.mark.parametrize("config_name", [ "terramind_base","terramind_large"])
 def test_current_terratorch_version_floods_predict(config_name, floods_image):
     # Models trained with current terratorch version
-    config_path = f"/dccstor/terratorch/tmp/{config_name}/lightning_logs/version_0/config_deploy.yaml"
+    config_path = os.path.join(TMP_ROOT, config_name, "lightning_logs", "version_0", "config_deploy.yaml")
 
-    pattern = os.path.join(f"/dccstor/terratorch/tmp/{config_name}/", "best-state_dict-epoch=*.ckpt")
+    pattern = os.path.join(TMP_ROOT, config_name, "best-state_dict-epoch=*.ckpt")
     checkpoint_path = glob.glob(pattern)[0]
 
     # deploy_config_path = create_deploy_config(config_path)
@@ -366,12 +375,12 @@ def test_current_terratorch_version_floods_predict(config_name, floods_image):
 # Models trained with current terratorch version
 def test_current_terratorch_version_burnscars_predict(config_name, burnscars_image):
     # config_path = f"configs/test_{config_name}.yaml"
-    config_path = f"/dccstor/terratorch/tmp/{config_name}/lightning_logs/version_0/config_deploy.yaml"
+    config_path = os.path.join(TMP_ROOT, config_name, "lightning_logs", "version_0", "config_deploy.yaml")
 
     # ToDo: Remove after updating terratorch version and running fine-tune tests again.
     # update_grep_config_in_file(config_path=config_path, new_img_pattern="*.tif*")
 
-    pattern = os.path.join(f"/dccstor/terratorch/tmp/{config_name}/", "best-state_dict-epoch=*.ckpt")
+    pattern = os.path.join(TMP_ROOT, config_name, "best-state_dict-epoch=*.ckpt")
     checkpoint_path = glob.glob(pattern)[0]
 
     preds = run_inference(config=config_path, checkpoint=checkpoint_path, image=burnscars_image)
@@ -405,7 +414,7 @@ def test_current_terratorch_version_burnscars_predict(config_name, burnscars_ima
 )
 def test_cleanup(model_name):
     # Delete all folders creating during finetuning after running inference.
-    full_path = os.path.join("/dccstor/terratorch/tmp/", model_name)
+    full_path = os.path.join(TMP_ROOT, model_name)
     print("Attempting to delete:", full_path)
     try:
         shutil.rmtree(full_path)
