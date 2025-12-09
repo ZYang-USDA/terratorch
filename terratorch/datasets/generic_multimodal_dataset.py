@@ -44,8 +44,8 @@ def load_table_data(file_path: str | Path) -> pd.DataFrame:
 
 class GenericMultimodalDataset(NonGeoDataset, ABC):
     """
-    This is a generic dataset class to be used for instantiating datasets from arguments.
-    Ideally, one would create a dataset class specific to a dataset.
+    This is a generic dataset class initialized by
+    [GenericMultiModalDataModule][terratorch.datamodules.GenericMultiModalDataModule].
     """
 
     def __init__(

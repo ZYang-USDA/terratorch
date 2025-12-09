@@ -172,8 +172,14 @@ class MultiModalBatchSampler(BatchSampler):
 
 class GenericMultiModalDataModule(NonGeoDataModule):
     """
-    This is a generic datamodule class for instantiating data modules at runtime.
-    Composes several [GenericNonGeoSegmentationDatasets][terratorch.datasets.GenericNonGeoSegmentationDataset]
+    This is a generic datamodule class for instantiating multimodal data modules at runtime.
+    Composes several [GenericMultimodalDataset][terratorch.datasets.GenericMultimodalDataset].
+
+    The dataset builds can take quite long do to multiple glob calls.
+    For large datasets (100k+ samples), it is recommended to provide split files with sample prefixes,
+    exact image_grep/label_grep, allow_substring_file_names=False, and optinally skip_file_checks=True,
+    e.g., with files "sample1_s2l2a.tif", use sample prefix "sample1" and image_grep={"S2": "_s2l2a.tif"}.
+    This speeds up the build. However, it does not work with allow_missing_modalities=True.
     """
 
     def __init__(
@@ -257,7 +263,7 @@ class GenericMultiModalDataModule(NonGeoDataModule):
                 csv/parquet files with labels. Required for supervised tasks.
             label_data_root (Path | None, optional): Fallback if label data root is shared for splits and not specified.
             image_grep (dict[str], optional): Dictionary with regular expression appended to data_root to find input
-                images, with modalities as keys. Defaults to "*". Ignored when allow_substring_file_names is False.
+                images, with modalities as keys. Only supports wildcards (*) at the beginning. Defaults to "*".
             label_grep (str, optional): Regular expression appended to label_data_root to find labels or mask files.
                 Defaults to "*". Ignored when allow_substring_file_names is False.
             train_split (Path, optional): Path to file containing training samples prefixes to be used for this split.
