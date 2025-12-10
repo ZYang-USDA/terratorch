@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # lightning.pytorch==2.1.1
+# lightning.pytorch==2.1.1
 seed_everything: 0
 trainer:
   accelerator: auto
@@ -10,16 +11,17 @@ trainer:
   num_nodes: 1
   precision: 16-mixed
   logger: true
-
   callbacks:
     - class_path: lightning.pytorch.callbacks.LearningRateMonitor
       init_args:
         logging_interval: epoch
 
+    # ---- Early stop if ----
     - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         monitor: val/loss
         patience: 20
+    # ---- Early stop endif ----
 
     - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
@@ -27,14 +29,13 @@ trainer:
         mode: min
         monitor: val/loss
         filename: best-state_dict-{epoch:02d}
-        save_weights_only: true
-
+        save_weights_only: True
+      
   max_epochs: 2
   check_val_every_n_epoch: 1
   log_every_n_steps: 50
   enable_checkpointing: true
   default_root_dir: /dccstor/terratorch/tmp/timm_resnet18/
-
 data:
   class_path: terratorch.datamodules.GenericNonGeoSegmentationDataModule
   init_args:
@@ -105,29 +106,38 @@ data:
 model:
   class_path: terratorch.tasks.SemanticSegmentationTask
   init_args:
-    model_factory: EncoderDecoderFactory
-    model_args:
-      task: segmentation
-
-      backbone: timm_resnet50
-      backbone_kwargs:
-        pretrained: true
-        in_chans: 6
-
-      decoder: UNetDecoder
-      decoder_kwargs:
-        decoder_channels: [512, 256, 128, 64]
-
-      head_kwargs:
-        num_classes: 3
-        dropout: 0.1
-
-      necks:
+    model_args: 
+      backbone: timm_resnet34 # timm_resnet34 , timm_resnet18 , timm_resnet50 , timm_resnet101 , timm_resnet152
+      backbone_pretrained: true 
+      num_classes: 3
+      backbone_in_chans: 6 # To be used with RGB when pretrained, can be more if not retrained
+      necks: 
         - name: SelectIndices
-          indices: [0, 1, 2, 3]
+          indices:  [0, 1, 2, 3]
+      decoder: UNetDecoder
+      #TODO user provided channels
+      decoder_channels: [512, 256, 128, 64]
+      head_channel_list:
+        - 256
 
-      rescale: true
+      head_dropout: 0.1
+    
+    model_factory: EncoderDecoderFactory
+    loss: ce
+    plot_on_val: 2
+    ignore_index: -1
+    freeze_backbone: false
+    freeze_decoder: false
 
+    # ---- optimizer start ----
+    # ---- optimizer end ----
+    
+    tiled_inference_parameters: 
+      h_crop: 224
+      h_stride: 196
+      w_crop: 224
+      w_stride: 196
+      average_patches: True
     
 optimizer:
   class_path: torch.optim.Adam
@@ -138,6 +148,6 @@ optimizer:
     weight_decay: 0.05
     # ---- Optimizer stop if ----
 lr_scheduler:
-  class_path: ReduceLROnPlateau
+  class_path: lightning.pytorch.cli.ReduceLROnPlateau
   init_args:
     monitor: val/loss
