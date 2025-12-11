@@ -115,12 +115,9 @@ data:
     train_transform:
     - class_path: albumentations.D4
       init_args:
-        always_apply: false
         p: 1.0
-    - class_path: albumentations.pytorch.ToTensorV2
+    - class_path: albumentations.pytorch.transforms.ToTensorV2
       init_args:
-        always_apply: true
-        p: 1.0
         transpose_mask: false
     val_data_root:
       S1GRD: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/training_data/S1GRD
