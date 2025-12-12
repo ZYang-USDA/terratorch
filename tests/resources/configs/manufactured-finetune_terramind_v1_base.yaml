@@ -78,7 +78,7 @@ data:
     val_label_data_root: tests/resources/inputs
     test_label_data_root: tests/resources/inputs
 
-    img_grep:
+    image_grep:
       S2L2A: "*input.tif"
     label_grep: "*label.tif"
 
