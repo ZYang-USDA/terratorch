@@ -68,12 +68,12 @@ data:
       - 0
     data_root:
       S2L2A: tests/resources/inputs
-    label_data_root:
-      S2L2A: tests/resources/inputs
+    label_data_root: tests/resources/inputs
 
     image_grep:
       S2L2A: "*input.tif"
     label_grep: "*label_seg.tif"
+
 
     means:
       S2L2A:
@@ -100,13 +100,13 @@ data:
         init_args:
           height: 220
           width: 220
-      - class_path: ToTensorV2
+      - class_path: albumentations.pytorch.transforms.ToTensorV2
     val_transform:
       - class_path: albumentations.RandomCrop
         init_args:
           height: 220
           width: 220
-      - class_path: ToTensorV2
+      - class_path: albumentations.pytorch.transforms.ToTensorV2
 
 model:
   class_path: terratorch.tasks.SemanticSegmentationTask

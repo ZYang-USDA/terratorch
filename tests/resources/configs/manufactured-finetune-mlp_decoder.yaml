@@ -41,7 +41,7 @@ data:
           border_mode: 0
           value: 0
           p: 0.5
-      - class_path: ToTensorV2
+      - class_path: albumentations.pytorch.transforms.ToTensorV2
     dataset_bands:
       - 0
       - BLUE
