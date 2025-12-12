@@ -112,6 +112,12 @@ data:
       S2L1C: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/training_data/S2L1C
     train_label_data_root: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/labels/
     train_split: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/split_files/train_data.txt
+    predict_data_root:
+      S1GRD: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/training_data/S1GRD
+      S2L1C: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/training_data/S2L1C
+    predict_label_data_root: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/labels/
+    predict_split: /ft-data/geodata-r2djfgvurzn3zbmqqzijgd/split_files/test_data.txt
+
     train_transform:
     - class_path: albumentations.D4
       init_args:
