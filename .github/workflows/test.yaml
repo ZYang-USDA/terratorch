@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 45
     strategy:
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.11", "3.12"] # albumentations breaks 3.13
     env:
       R_TESTS_VERBOSE: 2
     steps:
