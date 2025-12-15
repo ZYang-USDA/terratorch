@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from terratorch.models.backbones.prithvi_vit import PRETRAINED_BANDS
-from terratorch.tasks import ClassificationTask, PixelwiseRegressionTask, ReconstructionTask, SemanticSegmentationTask
+from terratorch.tasks import ClassificationTask, PixelwiseRegressionTask, ReconstructionTask, SemanticSegmentationTask, ScalarRegressionTask
 
 NUM_CHANNELS = 6
 NUM_CLASSES = 2

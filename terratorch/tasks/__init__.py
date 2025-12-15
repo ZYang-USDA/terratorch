@@ -7,7 +7,7 @@ from terratorch.tasks.inference_task import InferenceTask
 from terratorch.tasks.multilabel_classification_tasks import MultiLabelClassificationTask
 from terratorch.tasks.object_detection_task import ObjectDetectionTask
 from terratorch.tasks.reconstruction_tasks import ReconstructionTask
-from terratorch.tasks.regression_tasks import PixelwiseRegressionTask
+from terratorch.tasks.regression_tasks import PixelwiseRegressionTask, ScalarRegressionTask
 from terratorch.tasks.segmentation_tasks import SemanticSegmentationTask
 
 try:
@@ -31,6 +31,7 @@ __all__ = (
     "MultiLabelClassificationTask",
     "ObjectDetectionTask",
     "PixelwiseRegressionTask",
+    "ScalarRegressionTask",
     "ReconstructionTask",
     "SemanticSegmentationTask",
 )
