@@ -5,34 +5,32 @@ from __future__ import annotations
 import asyncio
 import base64
 import datetime
-from io import BytesIO
+import logging
 import os
 import tempfile
 import urllib.request
+import uuid
+import warnings
 from collections.abc import Sequence
-from typing import Any, Optional, Tuple, Union
+from datetime import datetime
+from io import BytesIO
+from typing import Any, Optional, Union
 
 import numpy as np
 import rasterio
 import regex as re
 import torch
 from einops import rearrange
-import logging
-from terratorch.vllm.plugins import generate_datamodule
-import uuid
-import warnings
 from vllm.config import VllmConfig
-from vllm.entrypoints.openai.protocol import (IOProcessorRequest,
-                                              IOProcessorResponse)
+from vllm.entrypoints.openai.protocol import IOProcessorRequest, IOProcessorResponse
 from vllm.inputs.data import PromptType
 from vllm.outputs import PoolingRequestOutput
-from vllm.plugins.io_processors.interface import (IOProcessor,
-                                                  IOProcessorInput,
-                                                  IOProcessorOutput)
+from vllm.plugins.io_processors.interface import IOProcessor, IOProcessorInput, IOProcessorOutput
 
-from datetime import datetime
-import os
-from .types import RequestData, RequestOutput, PluginConfig, TiledInferenceParameters
+from terratorch.tasks.tiled_inference import generate_tiled_inference_output, prepare_tiled_inference_input
+from terratorch.vllm.plugins import generate_datamodule
+
+from .types import PluginConfig, RequestData, RequestOutput, TiledInferenceParameters
 from .utils import download_file_async, read_file_async
 
 logger = logging.getLogger(__name__)
@@ -195,7 +193,7 @@ class SegmentationIOProcessor(IOProcessor):
     
     async def read_geotiff_async(self,
             file_path: str,
-            path_type: str, ) -> Tuple[np.ndarray, dict, Tuple[float, float]]:
+            path_type: str, ) -> tuple[np.ndarray, dict, tuple[float, float]]:
         """Read all bands from *file_path* and return image + meta info.
 
         Args:
@@ -346,6 +344,8 @@ class SegmentationIOProcessor(IOProcessor):
             indices=indices,
             path_type=image_data["data_format"],
         )
+
+        prompt_data, tensor_reshape_fn, _, h_img, w_img, _ = prepare_tiled_inference_input(input_data, **self.tiled_inference_parameters)
 
         if input_data.mean() > 1:
             input_data = input_data / 10000  # Convert to range 0-1
