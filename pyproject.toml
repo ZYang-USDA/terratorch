@@ -66,6 +66,7 @@ dependencies = [
   "tensorboard",
   "diffusers", #<=0.34.0",
   "scikit-learn>=1.3.2",
+  "scikit-image",
 ]
 
 
