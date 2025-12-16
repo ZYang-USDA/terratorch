@@ -131,7 +131,7 @@ def update_grep_config_in_file(config_path: str, new_img_pattern: str):
 
 @pytest.fixture(scope="session")
 def buildings_image(tmp_path_factory):
-    url = "https://s3.waw3-2.cloudferro.com/swift/v1/geobuildings/78957_1250257_N-33-141-A-b-1-1.tif"
+    url = "https://ibm.box.com/shared/static/fzt9ng3si2qk3l7b4iz6u9egfuj9re4o.tif"
     temp_dir = tmp_path_factory.mktemp("data")
     local_path = temp_dir / "buildings-img.tiff"
 
