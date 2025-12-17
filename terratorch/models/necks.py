@@ -84,12 +84,10 @@ class AggregateTokens(Neck):
         """
         super().__init__(channel_list)
 
-        if indices is None: # If indices is not set, use deprecated index, which defaults to -1.
-            self.indices = index
-        if isinstance(indices, int): # Wrap int index/ indices to be list.
-            self.indices = [indices]
-        else:
-            self.indices = indices
+        self.indices = indices or index # If indices is not set, use deprecated index, which defaults to -1.
+        if isinstance(self.indices, int): # Wrap int index/ indices to be list.
+            self.indices = [self.indices]
+
         self.pooling = pooling.lower()
         self.latent_dim = [channel_list[i] for i in self.indices]
         self.drop_cls = drop_cls
