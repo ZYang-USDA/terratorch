@@ -21,6 +21,8 @@ from matplotlib.patches import Rectangle
 import torch
 from torch import Tensor
 from torchgeo.datasets import NonGeoDataset
+import warnings
+from rasterio.errors import NotGeoreferencedWarning
 
 from terratorch.datasets.utils import HLSBands, default_transform, filter_valid_files, generate_bands_intervals
 from terratorch.datasets.utils import to_rgb, to_pca_rgb, resize_hwc
@@ -156,11 +158,7 @@ class GenericPixelWiseDataset(NonGeoDataset, ABC):
         self.transform = transform if transform else default_transform
         # self.transform = transform if transform else ToTensorV2()
 
-        import warnings
-
-        import rasterio
-
-        warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
+        warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
 
     def __len__(self) -> int:
         return len(self.image_files)
@@ -188,6 +186,7 @@ class GenericPixelWiseDataset(NonGeoDataset, ABC):
         return output
 
     def _load_file(self, path, nan_replace: int | float | None = None) -> xr.DataArray:
+        warnings.filterwarnings("ignore", category=NotGeoreferencedWarning)
         data = rioxarray.open_rasterio(path, masked=True)
         if nan_replace is not None:
             data = data.fillna(nan_replace)
@@ -352,7 +351,7 @@ class GenericNonGeoSegmentationDataset(GenericPixelWiseDataset):
         ax[3].axis(axes_visibility)
         ax[3].title.set_text("GT Mask on Image")
         ax[3].imshow(image)
-        ax[3].imshow(label, cmap="jet", alpha=0.3, norm=norm)
+        ax[3].imshow(label, cmap="jet", alpha=0.5 if embedding_input else 0.3, norm=norm)
 
         if prediction is not None:
             ax[4].axis(axes_visibility)
