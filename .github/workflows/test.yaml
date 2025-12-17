@@ -50,7 +50,7 @@ jobs:
           pip --version
           pip install -e .
           pip cache purge
-          pip install -e .[test,wxc]
+          pip install -e .[test]
       - name: List pip dependencies
         run: pip list
       - name: Cleaning cache
