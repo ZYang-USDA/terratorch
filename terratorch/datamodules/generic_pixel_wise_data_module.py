@@ -87,11 +87,11 @@ class GenericNonGeoSegmentationDataModule(NonGeoDataModule):
         train_data_root: Path,
         val_data_root: Path,
         test_data_root: Path,
-        means: list[float] | str,
-        stds: list[float] | str,
         num_classes: int,
         img_grep: str = "*",
         label_grep: str = "*",
+        means: list[float] | str | None = None,
+        stds: list[float] | str | None = None,
         predict_data_root: Path | None = None,
         train_label_data_root: Path | None = None,
         val_label_data_root: Path | None = None,
@@ -227,10 +227,13 @@ class GenericNonGeoSegmentationDataModule(NonGeoDataModule):
         #     K.Normalize(means, stds),
         #     data_keys=["image"],
         # )
-        means = load_from_file_or_attribute(means)
-        stds = load_from_file_or_attribute(stds)
+        if means and stds:
+            means = load_from_file_or_attribute(means)
+            stds = load_from_file_or_attribute(stds)
 
-        self.aug = Normalize(means, stds)
+            self.aug = Normalize(means, stds)
+        else:
+            self.aug = lambda x: x
 
         # self.aug = Normalize(means, stds)
         # self.collate_fn = collate_fn_list_dicts
@@ -367,8 +370,8 @@ class GenericNonGeoPixelwiseRegressionDataModule(NonGeoDataModule):
         train_data_root: Path,
         val_data_root: Path,
         test_data_root: Path,
-        means: list[float] | str,
-        stds: list[float] | str,
+        means: list[float] | str | None = None,
+        stds: list[float] | str | None = None,
         predict_data_root: Path | None = None,
         img_grep: str | None = "*",
         label_grep: str | None = "*",
@@ -499,10 +502,13 @@ class GenericNonGeoPixelwiseRegressionDataModule(NonGeoDataModule):
         #     K.Normalize(means, stds),
         #     data_keys=["image"],
         # )
-        means = load_from_file_or_attribute(means)
-        stds = load_from_file_or_attribute(stds)
+        if means and stds:
+            means = load_from_file_or_attribute(means)
+            stds = load_from_file_or_attribute(stds)
 
-        self.aug = Normalize(means, stds)
+            self.aug = Normalize(means, stds)
+        else:
+            self.aug = lambda x: x
         self.no_data_replace = no_data_replace
         self.no_label_replace = no_label_replace
 
