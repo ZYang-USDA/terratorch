@@ -100,9 +100,7 @@ To install as a developer (e.g. to extend the library):
 ```
 git clone https://github.com/terrastackai/terratorch.git
 cd terratorch
-pip install -r requirements_test.txt
-conda install -c conda-forge gdal
-pip install -e .
+pip install -e .[test]
 ```
 To install terratorch with partial (work in development) support for Weather Foundation Models, `pip install -e .[wxc]`, which currently works just for `Python >= 3.11`. 
 
