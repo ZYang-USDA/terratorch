@@ -1,5 +1,13 @@
-Examples are deprecated since they are not compatible with TerraTorch >= v1.2 anymore - we're urgently working on a new set of nice and clean examples for you
+"""
+Examples are deprecated since they are not compatible with TerraTorch >= v1.2 anymore.
 
-In the meanwhile please checkout the config files under
+We're urgently working on a new set of nice and clean examples for you.
+
+In the meanwhile please checkout the config files under:
 ./tests/resources/configs
 
+Note: The old examples are still available under:
+./examples_deprecated
+"""
+
+print(__doc__)
