@@ -182,9 +182,10 @@ class TerraTorchTask(BaseTask):
                 # Move modalities to main dict for unbind
                 for k, v in batch.pop("image").items():
                     batch[k] = v
-            if isinstance(batch["filename"], dict) and len(batch["filename"]):
-                # Get filename from first modality
-                batch["filename"] = list(batch["filename"].values())[0]
+            if batch.get("filename", None):
+                if isinstance(batch["filename"], dict) and len(batch["filename"]):
+                    # Get filename from first modality
+                    batch["filename"] = list(batch["filename"].values())[0]
 
             for key, value in batch.items():
                 if isinstance(value, torch.Tensor):
