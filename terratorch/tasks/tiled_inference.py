@@ -314,7 +314,7 @@ def generate_tiled_inference_output(outputs,
                                     h_img: int,
                                     w_img: int,
                                     delta: int,
-                                    padding: str | bool,
+                                    padding: str | bool = "reflect",
                                     average_patches: bool = True,
     ) -> torch.Tensor:
     preds: torch.Tensor | None = None
