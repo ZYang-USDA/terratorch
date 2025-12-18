@@ -1,13 +1,18 @@
-"""
-Examples are deprecated since they are not compatible with TerraTorch >= v1.2 anymore.
+import torch
+from collections import OrderedDict
+from argparse import ArgumentParser
 
-We're urgently working on a new set of nice and clean examples for you.
+parser = ArgumentParser()
+parser.add_argument("--input_file")
+parser.add_argument("--output_file")
+parser.add_argument("--n_copies", type=int, default=2)
 
-In the meanwhile please checkout the config files under:
-./tests/resources/configs
+args = parser.parse_args()
+input_file = args.input_file
+output_file = args.output_file
 
-Note: The old examples are still available under:
-./examples_deprecated
-"""
+state_dict = torch.load(input_file)
+state_dict_ = OrderedDict({"model."+k: v for k,v in state_dict.items()})
+content = {"state_dict": state_dict_, "pytorch-lightning_version": "2.5.0post0"}
 
-print(__doc__)
+torch.save(content, output_file)

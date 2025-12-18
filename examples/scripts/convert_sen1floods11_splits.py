@@ -1,13 +1,19 @@
-"""
-Examples are deprecated since they are not compatible with TerraTorch >= v1.2 anymore.
+import argparse
 
-We're urgently working on a new set of nice and clean examples for you.
+import numpy as np
 
-In the meanwhile please checkout the config files under:
-./tests/resources/configs
+parser = argparse.ArgumentParser('Arguments', add_help=False)
 
-Note: The old examples are still available under:
-./examples_deprecated
-"""
+# data loader related
+parser.add_argument('--input_file', type=str)
+args = parser.parse_args()
 
-print(__doc__)
+input_file = args.input_file
+
+data = np.genfromtxt(input_file, delimiter=',', dtype=str)
+
+col1 = data[:,0].tolist()
+
+col1_ = ["_".join(i.split("_")[:2]) for i in col1]
+
+np.savetxt(input_file.replace("csv", "txt"), col1_, fmt="%s")

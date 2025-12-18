@@ -1,13 +1,24 @@
-"""
-Examples are deprecated since they are not compatible with TerraTorch >= v1.2 anymore.
+from terratorch.io.file import open_generic_torch_model
+from terratorch.models.backbones.prithvi_mae import PrithviMAE
+from torch import nn
 
-We're urgently working on a new set of nice and clean examples for you.
+# Path for a downloaded model
+model_weights_path = "./pretrain-vit-base-e199.pth"
+model_template = PrithviMAE
 
-In the meanwhile please checkout the config files under:
-./tests/resources/configs
+model_kwargs = {
+    'img_size': 224,
+    'patch_size': 16,
+    'in_chans': 3,
+    'embed_dim': 1024,
+    'depth': 24,
+    'num_heads': 16,
+    'decoder_embed_dim': 512,
+    'decoder_depth': 8,
+    'decoder_num_heads': 16,
+    'mlp_ratio': 4,
+    'norm_layer': nn.LayerNorm,
+    'norm_pix_loss': False,
+}
 
-Note: The old examples are still available under:
-./examples_deprecated
-"""
-
-print(__doc__)
+model = open_generic_torch_model(model=model_template, model_kwargs=model_kwargs, model_weights_path=model_weights_path)
