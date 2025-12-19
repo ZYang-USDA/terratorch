@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 import torch
+import torch.nn.functional as F
+from sklearn.decomposition import PCA
 
 
 class HLSBands(Enum):
@@ -225,3 +227,61 @@ def clip_image_percentile(img: np.ndarray, q_lower: float = 1, q_upper: float = 
     img = np.clip(img, 0, 1)
 
     return img
+
+
+def to_rgb(image_chw: np.ndarray, rgb_indices: list[int]) -> np.ndarray:
+    """Convert a channel-first image (C, H, W) to an RGB image for visualization."""
+
+    img = image_chw.take(rgb_indices, axis=0)
+    img = np.transpose(img, (1, 2, 0))
+    img = img / np.quantile(img, q=0.99, axis=(0, 1), keepdims=True)
+
+    return np.clip(img, 0, 1)
+
+
+def to_pca_rgb(image_chw: np.ndarray, step: int = 4) -> np.ndarray:
+    """Convert channel-first embedding (C, H, W) to a 3-channel PCA visualization.
+
+    Args:
+        image_chw: Spatial embeddings in (C, H, W) format.
+        step (int): Spatial subsampling factor for PCA fitting in embedding visualizations.
+            PCA components are estimated using only every pca_step-th spatial embedding
+            (e.g. pca_step=4 uses 1/4 of embeddings), then applied to all embeddings. Defaults to 4.
+    """
+    if image_chw.ndim != 3:
+        raise ValueError(f"Unsupported embedding shape {tuple(image_chw.shape)}")
+
+    C, H, W = image_chw.shape
+    emb_flat = image_chw.reshape(C, -1).T
+
+    emb_fit = emb_flat[::step].astype(np.float32, copy=True)
+    mean = emb_fit.mean(axis=0, keepdims=True)
+    emb_fit -= mean
+
+    pca = PCA(n_components=3, svd_solver="randomized", random_state=0)
+    pca.fit(emb_fit)
+
+    proj = pca.transform(emb_flat.astype(np.float32, copy=False) - mean)
+
+    min = proj.min(axis=0, keepdims=True)
+    max = proj.max(axis=0, keepdims=True)
+    proj = (proj - min) / np.maximum(max - min, 1e-8)
+
+    return proj.reshape(H, W, 3), H, W
+
+
+def resize_hwc(img_hwc: np.ndarray, size_hw: tuple[int, int]) -> np.ndarray:
+    """Resize an image in (H, W, C) format to a target spatial size."""
+    target_h, target_w = size_hw
+
+    img_chw = np.transpose(img_hwc, (2, 0, 1))
+    img_tensor = torch.from_numpy(img_chw).unsqueeze(0).float()
+
+    img_resized = F.interpolate(
+        img_tensor,
+        size=(target_h, target_w),
+        mode="bilinear",
+        align_corners=False,
+    )
+
+    return img_resized.squeeze(0).permute(1, 2, 0).numpy()  # (H, W, C)
