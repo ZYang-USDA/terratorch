@@ -9,6 +9,7 @@ import warnings
 import os
 import re
 import torch
+import rasterio
 import pandas as pd
 from abc import ABC
 from pathlib import Path
@@ -25,7 +26,7 @@ from matplotlib.patches import Rectangle
 from matplotlib.colors import ListedColormap
 from torchgeo.datasets import NonGeoDataset
 
-from terratorch.datasets.utils import HLSBands, default_transform, generate_bands_intervals
+from terratorch.datasets.utils import default_transform, generate_bands_intervals
 from terratorch.datasets.transforms import MultimodalTransforms, MultimodalToTensor
 
 logger = logging.getLogger("terratorch")
@@ -105,15 +106,14 @@ class GenericMultimodalDataset(NonGeoDataset, ABC):
                 of all modalities. Defaults to None.
             output_bands (dict[list], optional): Bands that should be output by the dataset as named by dataset_bands,
                 provided as a dictionary with modality keys. Can be subset of all modalities. Defaults to None.
-            constant_scale (dict[float]): Factor to multiply data values by, provided as a dictionary with modalities as
-                keys. Can be subset of all modalities. Defaults to None.
+            constant_scale (dict[str, float]): Factor to multiply data values by, provided as a dictionary with
+                modalities as keys. Can be subset of all modalities. Defaults to None.
             transform (Albumentations.Compose | dict | None): Albumentations transform to be applied to all image
                 modalities (transformation are shared between image modalities, e.g., similar crop or rotation).
-                Should end with ToTensorV2(). If used through the generic_data_module, should not include normalization.
-                Not supported for multi-temporal data. The transform is not applied to non-image data, which is only
-                converted to tensors if possible. If dict, can include multiple transforms per modality which are
-                applied separately (no shared parameters between modalities).
-                Defaults to None, which simply applies ToTensorV2().
+                Should end with albumentations.ToTensorV2(). If used through the generic_data_module, should not include
+                normalization. The transform is not applied to non-image data, which is only converted to tensors if
+                possible. If dict with modalities as keys, transforms are applied seperatly per modality without shared
+                parameters. Defaults to terratorch.datasets.transforms.MultimodalToTensor().
             no_data_replace (float | None): Replace nan values in input data with this value.
                 If None, does no replacement. Defaults to None.
             no_label_replace (float | None): Replace nan values in label with this value.
@@ -342,16 +342,16 @@ class GenericMultimodalDataset(NonGeoDataset, ABC):
             self.transform = MultimodalTransforms(transform,
                                                   non_image_modalities=self.non_image_modalities + ['label']
                                                   if scalar_label else self.non_image_modalities)
-        elif transform is None:
-            self.transform = MultimodalToTensor(self.modalities)
-        else:
+        elif isinstance(transform, dict):
             # Modality-specific transforms
             transform = {m: transform[m] if m in transform else default_transform for m in self.modalities}
             self.transform = MultimodalTransforms(transform, shared=False)
+        elif transform is None:
+            self.transform = MultimodalToTensor(self.modalities)
+        else:
+            raise ValueError(f'Unknown transform type: {type(transform)}, expect A.Compose, dict or None.')
 
         # Ignore rasterio warning for not geo-referenced files
-        import rasterio
-
         warnings.filterwarnings("ignore", category=rasterio.errors.NotGeoreferencedWarning)
         warnings.filterwarnings("ignore", message="Dataset has no geotransform")
 
@@ -594,7 +594,7 @@ class GenericMultimodalSegmentationDataset(GenericMultimodalDataset):
         dataset_bands: dict[str, list] | None = None,
         output_bands: dict[str, list] | None = None,
         class_names: list[str] | None = None,
-        constant_scale: dict[str, float] = 1.0,
+        constant_scale: dict[str, float] = None,
         transform: A.Compose | None = None,
         no_data_replace: float | None = None,
         no_label_replace: int | None = -1,
@@ -639,15 +639,14 @@ class GenericMultimodalSegmentationDataset(GenericMultimodalDataset):
             output_bands (dict[list], optional): Bands that should be output by the dataset as named by dataset_bands,
                 provided as a dictionary with modality keys. Can be subset of all modalities. Defaults to None.
             class_names (list[str], optional): Names of the classes. Defaults to None.
-            constant_scale (dict[str, float]): Factor to multiply data values by, provided as a dictionary with modalities as
-                keys. Can be subset of all modalities. Defaults to None.
+            constant_scale (dict[str, float]): Factor to multiply data values by, provided as a dictionary with
+                modalities as keys. Can be subset of all modalities. Defaults to None.
             transform (Albumentations.Compose | dict | None): Albumentations transform to be applied to all image
                 modalities (transformation are shared between image modalities, e.g., similar crop or rotation).
-                Should end with ToTensorV2(). If used through the generic_data_module, should not include normalization.
-                Not supported for multi-temporal data. The transform is not applied to non-image data, which is only
-                converted to tensors if possible. If dict, can include multiple transforms per modality which are
-                applied separately (no shared parameters between modalities).
-                Defaults to None, which simply applies ToTensorV2().
+                Should end with albumentations.ToTensorV2(). If used through the generic_data_module, should not include
+                normalization. The transform is not applied to non-image data, which is only converted to tensors if
+                possible. If dict with modalities as keys, transforms are applied seperatly per modality without shared
+                parameters. Defaults to terratorch.datasets.transforms.MultimodalToTensor().
             no_data_replace (float | None): Replace nan values in input data with this value.
                 If None, does no replacement. Defaults to None.
             no_label_replace (float | None): Replace nan values in label with this value.
@@ -716,7 +715,7 @@ class GenericMultimodalPixelwiseRegressionDataset(GenericMultimodalDataset):
         skip_file_checks: bool = False,
         dataset_bands: dict[str, list] | None = None,
         output_bands: dict[str, list] | None = None,
-        constant_scale: dict[str, float] = 1.0,
+        constant_scale: dict[str, float] = None,
         transform: A.Compose | dict | None = None,
         no_data_replace: float | None = None,
         no_label_replace: float | None = None,
@@ -762,10 +761,11 @@ class GenericMultimodalPixelwiseRegressionDataset(GenericMultimodalDataset):
             constant_scale (dict[float]): Factor to multiply data values by, provided as a dictionary with modalities as
                 keys. Can be subset of all modalities. Defaults to None.
             transform (Albumentations.Compose | dict | None): Albumentations transform to be applied to all image
-                modalities. Should end with ToTensorV2() and not include normalization. The transform is not applied to
-                non-image data, which is only converted to tensors if possible. If dict, can include separate transforms
-                per modality (no shared parameters between modalities).
-                Defaults to None, which simply applies ToTensorV2().
+                modalities (transformation are shared between image modalities, e.g., similar crop or rotation).
+                Should end with albumentations.ToTensorV2(). If used through the generic_data_module, should not include
+                normalization. The transform is not applied to non-image data, which is only converted to tensors if
+                possible. If dict with modalities as keys, transforms are applied seperatly per modality without shared
+                parameters. Defaults to terratorch.datasets.transforms.MultimodalToTensor().
             no_data_replace (float | None): Replace nan values in input data with this value.
                 If None, does no replacement. Defaults to None.
             no_label_replace (float | None): Replace nan values in label with this value.
@@ -834,7 +834,7 @@ class GenericMultimodalScalarDataset(GenericMultimodalDataset):
         dataset_bands: dict[str, list] | None = None,
         output_bands: dict[str, list] | None = None,
         class_names: list[str] | None = None,
-        constant_scale: dict[str, float] = 1.0,
+        constant_scale: dict[str, float] = None,
         transform: A.Compose | None = None,
         no_data_replace: float | None = None,
         no_label_replace: int | None = None,
@@ -880,15 +880,14 @@ class GenericMultimodalScalarDataset(GenericMultimodalDataset):
             output_bands (dict[list], optional): Bands that should be output by the dataset as named by dataset_bands,
                 provided as a dictionary with modality keys. Can be subset of all modalities. Defaults to None.
             class_names (list[str], optional): Names of the classes. Defaults to None.
-            constant_scale (dict[float]): Factor to multiply data values by, provided as a dictionary with modalities as
-                keys. Can be subset of all modalities. Defaults to None.
+            constant_scale (dict[str, float]): Factor to multiply data values by, provided as a dictionary with
+                modalities as keys. Can be subset of all modalities. Defaults to None.
             transform (Albumentations.Compose | dict | None): Albumentations transform to be applied to all image
                 modalities (transformation are shared between image modalities, e.g., similar crop or rotation).
-                Should end with ToTensorV2(). If used through the generic_data_module, should not include normalization.
-                Not supported for multi-temporal data. The transform is not applied to non-image data, which is only
-                converted to tensors if possible. If dict, can include multiple transforms per modality which are
-                applied separately (no shared parameters between modalities).
-                Defaults to None, which simply applies ToTensorV2().
+                Should end with albumentations.ToTensorV2(). If used through the generic_data_module, should not include
+                normalization. The transform is not applied to non-image data, which is only converted to tensors if
+                possible. If dict with modalities as keys, transforms are applied seperatly per modality without shared
+                parameters. Defaults to terratorch.datasets.transforms.MultimodalToTensor().
             no_data_replace (float | None): Replace nan values in input data with this value.
                 If None, does no replacement. Defaults to None.
             no_label_replace (float | None): Replace nan values in label with this value.

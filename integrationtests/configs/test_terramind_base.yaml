@@ -8,17 +8,16 @@ trainer:
   precision: 16-mixed
   logger: true
   callbacks:
-    - class_path: RichProgressBar
-    - class_path: LearningRateMonitor
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
       init_args:
         logging_interval: epoch
     # ---- Early stop if ----
-    - class_path: EarlyStopping
+    - class_path: lightning.pytorch.callbacks.EarlyStopping
       init_args:
         monitor: val/loss
         patience: 20
      # ---- Early stop endif ----
-    - class_path: ModelCheckpoint
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
       init_args:
         dirpath: /dccstor/terratorch/tmp/terramind_base/
         mode: min
@@ -105,9 +104,9 @@ data:
       S1GRD: /dccstor/geofm-datasets/datasets/senfloods_multimodal/data/S1GRDHand
       
     test_label_data_root: /dccstor/geofm-datasets/datasets/senfloods_multimodal/data/LabelHand
-    train_split: /dccstor/geofm-datasets/datasets/senfloods_multimodal/data/splits/flood_train_data.txt
-    test_split: /dccstor/geofm-datasets/datasets/senfloods_multimodal/data/splits/flood_test_data.txt
-    val_split:  /dccstor/geofm-datasets/datasets/senfloods_multimodal/data/splits/flood_valid_data.txt
+    train_split: /dccstor/geofm-datasets/datasets/sen1floods11_v1.1/splits/flood_train_data.txt
+    test_split: /dccstor/geofm-datasets/datasets/sen1floods11_v1.1/splits/flood_test_data.txt
+    val_split: /dccstor/geofm-datasets/datasets/sen1floods11_v1.1/splits/flood_valid_data.txt
     image_grep: 
       S1GRD: '*_S1Hand.tif'
       S2L1C: '*_S2Hand.tif'
@@ -154,7 +153,7 @@ data:
 
     train_transform:
       - class_path: albumentations.D4  # Random flip and rotations
-      - class_path: ToTensorV2
+      - class_path: albumentations.pytorch.transforms.ToTensorV2
   
 model:
   class_path: terratorch.tasks.SemanticSegmentationTask
@@ -163,7 +162,7 @@ model:
     model_args:
       backbone: terramind_v1_base
       #  terramind_v1_base  # large version: terramind_v1_large
-      backbone_pretrained: true
+      backbone_pretrained: false
       backbone_modalities:
         - S2L1C
         - S1GRD
@@ -228,7 +227,7 @@ optimizer:
     weight_decay: 0.05
     
 lr_scheduler:
-  class_path: ReduceLROnPlateau
+  class_path: lightning.pytorch.cli.ReduceLROnPlateau
   init_args:
     monitor: val/loss
     factor: 0.5

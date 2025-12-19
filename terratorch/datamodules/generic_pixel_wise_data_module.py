@@ -6,9 +6,11 @@ This module contains generic data modules for instantiation at runtime.
 
 import logging
 import os
+from albumentations.core.composition import BaseCompose
+from albumentations.core.composition import Compose
 from collections.abc import Callable, Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional
 
 import albumentations as A
 import kornia.augmentation as K
@@ -105,9 +107,9 @@ class GenericNonGeoSegmentationDataModule(NonGeoDataModule):
         predict_output_bands: list[HLSBands | int | tuple[int, int] | str] | None = None,
         constant_scale: float = 1,
         rgb_indices: list[int] | None = None,
-        train_transform: A.Compose | None | list[A.BasicTransform] = None,
-        val_transform: A.Compose | None | list[A.BasicTransform] = None,
-        test_transform: A.Compose | None | list[A.BasicTransform] = None,
+        train_transform: list[Any] | bool | None = None,
+        val_transform: list[Any] | bool | None = None,
+        test_transform: list[Any] | bool | None = None,
         expand_temporal_dimension: bool = False,
         reduce_zero_label: bool = False,
         no_data_replace: float | None = None,
@@ -370,9 +372,9 @@ class GenericNonGeoPixelwiseRegressionDataModule(NonGeoDataModule):
         predict_output_bands: list[HLSBands | int | tuple[int, int] | str] | None = None,
         constant_scale: float = 1,
         rgb_indices: list[int] | None = None,
-        train_transform: A.Compose | None | list[A.BasicTransform] = None,
-        val_transform: A.Compose | None | list[A.BasicTransform] = None,
-        test_transform: A.Compose | None | list[A.BasicTransform] = None,
+        train_transform: Optional[List[Any]] = None,
+        val_transform: Optional[List[Any]] = None,
+        test_transform: Optional[List[Any]] = None,
         expand_temporal_dimension: bool = False,
         reduce_zero_label: bool = False,
         no_data_replace: float | None = None,

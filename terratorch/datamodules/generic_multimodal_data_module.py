@@ -5,6 +5,7 @@ This module contains generic data modules for instantiation at runtime.
 """
 
 import logging
+from typing import Any
 import warnings
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -14,7 +15,6 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, RandomSampler, BatchSampler, SequentialSampler, default_collate
 from torchgeo.datamodules import NonGeoDataModule
-
 from terratorch.datasets import (GenericMultimodalDataset, GenericMultimodalSegmentationDataset,
                                  GenericMultimodalPixelwiseRegressionDataset, GenericMultimodalScalarDataset, HLSBands)
 from terratorch.datamodules.generic_pixel_wise_data_module import Normalize
@@ -63,6 +63,9 @@ def collate_samples(batch_list):
 
 
 def wrap_in_compose_is_list(transform_list, image_modalities=None, non_image_modalities=None):
+    if not isinstance(transform_list, Iterable):
+        return transform_list
+
     additional_targets = {}
     if image_modalities:
         for modality in image_modalities:
@@ -72,8 +75,12 @@ def wrap_in_compose_is_list(transform_list, image_modalities=None, non_image_mod
         for modality in non_image_modalities:
             additional_targets[modality] = "global_label"
     # set check shapes to false because of the multitemporal case
-    return A.Compose(transform_list, is_check_shapes=False, additional_targets=additional_targets) \
-        if isinstance(transform_list, Iterable) else transform_list
+    try:
+        transform = A.Compose(transform_list, is_check_shapes=False, additional_targets=additional_targets)
+    except Exception as e:
+        raise ValueError(f"Failed to compose transform {transform_list} with error {e.__class__.__name__}: {e}."
+                         f"Expects list of albumentations.BasicTransform.")
+    return transform
 
 
 class MultimodalNormalize(Callable):
@@ -107,9 +114,11 @@ class MultimodalNormalize(Callable):
                 # C, H, W
                 means = torch.tensor(self.means[m], device=image.device).view(-1, 1, 1)
                 stds = torch.tensor(self.stds[m], device=image.device).view(-1, 1, 1)
+
             elif len(image.shape) == 2:
                 means = torch.tensor(self.means[m], device=image.device)
                 stds = torch.tensor(self.stds[m], device=image.device)
+
             elif len(image.shape) == 1:
                 means = torch.tensor(self.means[m], device=image.device)
                 stds = torch.tensor(self.stds[m], device=image.device)
@@ -214,10 +223,10 @@ class GenericMultiModalDataModule(NonGeoDataModule):
         allow_substring_file_names: bool = True,
         skip_file_checks: bool = False,
         class_names: list[str] | None = None,
-        constant_scale: dict[str, float] = None,
-        train_transform: dict | A.Compose | None | list[A.BasicTransform] = None,
-        val_transform: dict | A.Compose | None | list[A.BasicTransform] = None,
-        test_transform: dict | A.Compose | None | list[A.BasicTransform] = None,
+        constant_scale: dict[str, float] | None = None,
+        train_transform: list[Any] | dict[str, list[Any]] | None = None,
+        val_transform: list[Any] | dict[str, list[Any]] | None = None,
+        test_transform: list[Any] | dict[str, list[Any]] | None = None,
         shared_transforms: list | bool = True,
         expand_temporal_dimension: bool = False,
         no_data_replace: float | None = None,
@@ -233,7 +242,6 @@ class GenericMultiModalDataModule(NonGeoDataModule):
         channel_position: int = -3,
         concat_bands: bool = False,
         check_stackability: bool = True,
-        img_grep: str | dict[str, str] | None = None,
     ) -> None:
         """Constructor
 
@@ -305,22 +313,19 @@ class GenericMultiModalDataModule(NonGeoDataModule):
             class_names (list[str], optional): Names of the classes. Defaults to None.
             constant_scale (dict[str, float]): Factor to multiply data values by, provided as a dictionary with modalities as
                 keys. Can be subset of all modalities. Defaults to None.
-            train_transform (Albumentations.Compose | dict | None): Albumentations transform to be applied to all image
-                modalities. Should end with ToTensorV2() and not include normalization. The transform is not applied to 
-                non-image data, which is only converted to tensors if possible. If dict, can include separate transforms 
-                per modality (no shared parameters between modalities). 
-                Defaults to None, which simply applies ToTensorV2().
-            val_transform (Albumentations.Compose | dict | None): Albumentations transform to be applied to all image
-                modalities. Should end with ToTensorV2() and not include normalization. The transform is not applied to 
-                non-image data, which is only converted to tensors if possible. If dict, can include separate transforms 
-                per modality (no shared parameters between modalities). 
-                Defaults to None, which simply applies ToTensorV2().
-            test_transform (Albumentations.Compose | dict | None): Albumentations transform to be applied to all image
-                modalities. Should end with ToTensorV2() and not include normalization. The transform is not applied to 
-                non-image data, which is only converted to tensors if possible. If dict, can include separate transforms 
-                per modality (no shared parameters between modalities). 
-                Defaults to None, which simply applies ToTensorV2().
-            shared_transforms (bool): transforms are shared between all image modalities (e.g., similar crop). 
+            train_transform (list | dict | None): List of albumentations transforms to be applied to image modalities.
+                Should end with albumentations.ToTensorV2() and not include normalization. The transform is not applied
+                to non-image data, which is only converted to tensors if possible. If provided as dict, transforms are
+                applied per modality without shared parameters. Defaults to None.
+            val_transform (list | dict | None): List of albumentations transforms to be applied to image modalities.
+                Should end with albumentations.ToTensorV2() and not include normalization. The transform is not applied
+                to non-image data, which is only converted to tensors if possible. If provided as dict, transforms are
+                applied per modality without shared parameters. Defaults to None.
+            test_transform (list | dict | None): List of albumentations transforms to be applied to image modalities.
+                Should end with albumentations.ToTensorV2() and not include normalization. The transform is not applied
+                to non-image data, which is only converted to tensors if possible. If provided as dict, transforms are
+                applied per modality without shared parameters. Defaults to None.
+            shared_transforms (bool): transforms are shared between all image modalities (e.g., similar crop).
                 This setting is ignored if transforms are defined per modality. Defaults to True.  
             expand_temporal_dimension (bool): Go from shape (time*channels, h, w) to (channels, time, h, w).
                 Only works with image modalities. Is only applied to modalities with defined dataset_bands.
@@ -369,11 +374,6 @@ class GenericMultiModalDataModule(NonGeoDataModule):
         self.non_image_modalities = list(set(self.modalities) - set(self.image_modalities))
         if task == "scalar":
             self.non_image_modalities += ["label"]
-
-        if img_grep is not None:
-            warnings.warn(f"img_grep was renamed to image_grep and will be removed in a future version.",
-                          DeprecationWarning)
-            image_grep = img_grep
 
         if isinstance(image_grep, dict):
             # Check if image_grep is valid

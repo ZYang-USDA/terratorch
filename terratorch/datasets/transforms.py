@@ -39,7 +39,7 @@ def kornia_augmentations_to_callable_with_dict(augmentations: list[Union[Geometr
     return fn
 
 
-def albumentations_to_callable_with_dict(albumentation: list[BasicTransform] | None = None):
+def albumentations_to_callable_with_dict(albumentation: list | None = None):
     if albumentation is None:
         return lambda x: x
     albumentation = Compose(albumentation)
