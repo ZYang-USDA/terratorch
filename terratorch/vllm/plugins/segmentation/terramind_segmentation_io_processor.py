@@ -6,6 +6,7 @@ import asyncio
 import logging
 import os
 from pathlib import Path
+import copy
 
 from collections.abc import Sequence
 from typing import Any, Optional, Union
@@ -21,17 +22,18 @@ from vllm.plugins.io_processors.interface import IOProcessor, IOProcessorInput, 
 from terratorch.tasks.tiled_inference import generate_tiled_inference_output, prepare_tiled_inference_input
 from terratorch.vllm.plugins import generate_datamodule
 from terratorch.cli_tools import write_tiff
+from .utils import download_file_async, get_filename_from_url, path_or_tmpdir, to_base64_tiff
 
 from .types import PluginConfig, RequestData, RequestOutput, TiledInferenceParameters
 
 logger = logging.getLogger(__name__)
 
 class TerramindSegmentationIOProcessor(IOProcessor):
-    """vLLM IOProcessor for segmentation tasks
+    """vLLM IOProcessor for Terramind segmentation tasks
 
-    This class instantiates an IO Processor plugin for vLLM for pre/post processing of GeoTiff images
-    to be used with Segmentation tasks.
-    This plugin accepts GeoTiff images in the format of a url, a base64 encoded string or a file path.
+    This class instantiates an IO Processor plugin for vLLM for pre/post processing of multimodal data
+    to be used with Terramind in Segmentation tasks.
+    This plugin accepts multimodal data in the format of a url, or a directory path.
     Similarly, it can generate GeoTiff images is the form of a base64 encoded string or a file path.
 
     The plugin accepts and returns data in various formats and can be configured via the below environment variable:
@@ -41,7 +43,6 @@ class TerramindSegmentationIOProcessor(IOProcessor):
     - output_path (String): Default path for storing output files when requesting output in 'path' mode. It is is ignored otherwise.
     The full schema of the plugin configuration can be found in vllm.plugins.segmentation.types.PluginConfig
     
-
     Once instantiated from the vLLM side, the plugin is automatically used when performing inference requests to the
     '/pooling' endpoint of a vLLM instance.
     """
@@ -59,8 +60,6 @@ class TerramindSegmentationIOProcessor(IOProcessor):
         plugin_config_string = os.getenv("TERRATORCH_SEGMENTATION_IO_PROCESSOR_CONFIG", "{}")
 
         self.plugin_config = PluginConfig.model_validate_json(plugin_config_string)
-
-        self.datamodule = generate_datamodule(self.model_config["data"])
         
         self.tiled_inference_parameters = self._init_tiled_inference_parameters_info() 
         self.batch_size = 1
@@ -84,8 +83,34 @@ class TerramindSegmentationIOProcessor(IOProcessor):
         else:
             tiled_inf_param_dict = {}
         
-        print(f"tiled_inference_parameters: {tiled_inf_param_dict}")
         return TiledInferenceParameters(**tiled_inf_param_dict)
+    
+    def _get_datamodule_config(self) -> dict:
+        data_module_config = copy.deepcopy(self.model_config["data"])
+        
+        if "ImpactMeshDataModule" in data_module_config["class_path"]:
+            # This is so that we can put the input data in a folder with an arbitrary name.
+            # However, this requires for the means and stds to be included in the model configuration
+            data_module_config["init_args"]["label_grep"] = ""
+
+        
+        return data_module_config
+
+    async def _download_input_data(self, dataset_path: str, request_data: dict):
+
+        # I am assuming the user to provide me with one url for each input modality
+        download_tasks = []
+        # with TemporaryDirectory(delete=False) as temp_dir:
+        dir_path = Path(dataset_path)
+        for modality, url in request_data.items():
+            modality_dir = dir_path / modality
+            modality_dir.mkdir()
+            dest_file = modality_dir / get_filename_from_url(url)
+            task = asyncio.create_task(download_file_async(url, dest_file))
+            download_tasks.append(task)
+
+        await asyncio.gather(*download_tasks)
+
 
     def parse_request(self, request: Any) -> IOProcessorInput:
         if type(request) is dict:
@@ -131,33 +156,42 @@ class TerramindSegmentationIOProcessor(IOProcessor):
         **kwargs,
     ) -> Union[PromptType, Sequence[PromptType]]:
 
-        image_data = dict(prompt)
-        dataset_path = image_data["data"]
-        import copy
-        data_module_config = copy.deepcopy(self.model_config["data"])
-        data_module_config["init_args"]["data_root"] = dataset_path
-        datamodule = generate_datamodule(data_module_config)
+        prompt_dict = dict(prompt)
+        
+        input_data_format = prompt_dict["data_format"]
+        
+        datamodule_config = self._get_datamodule_config()
 
-        datamodule.batch_size = 1
-        datamodule.setup("predict")
+        with path_or_tmpdir(prompt_dict) as dataset_path:
+            if input_data_format == "url":
+                await self._download_input_data(dataset_path, request_data=prompt_dict["data"])
 
-        data_loader = datamodule.predict_dataloader()
-        data = list(data_loader)[0]
+            # set the datamodule data_root to where the dataset is located
+            datamodule_config["init_args"]["data_root"] = dataset_path
+            datamodule = generate_datamodule(datamodule_config)
+            datamodule.batch_size = 1
+            datamodule.setup("predict")
 
+            # process the input files into Tensors
+            data_loader = datamodule.predict_dataloader()
+            data = list(data_loader)[0]
+
+            # retrieve original image metadata for later use
+            input_image_path = Path(dataset_path) / "DEM" / f"{data['filename'][0]}_DEM.tif"
+            with rasterio.open(input_image_path, "r") as src:
+                metadata = src.meta
+
+        # Split the input in tiles depending on the tiled inference parameters
         input_data = datamodule.aug(data)["image"]
-        try:
-            prompt_data, tensor_reshape_fn, input_batch_size, h_img, w_img, _ = (
-                prepare_tiled_inference_input(input_data,
-                                            h_crop=self.tiled_inference_parameters.h_crop,
-                                            w_crop=self.tiled_inference_parameters.h_crop,
-                                            h_stride=self.tiled_inference_parameters.h_stride,
-                                            w_stride=self.tiled_inference_parameters.w_stride,
-                                            delta=self.tiled_inference_parameters.delta)
+        prompt_data, tensor_reshape_fn, input_batch_size, h_img, w_img, _ = (
+            prepare_tiled_inference_input(input_data,
+                h_crop=self.tiled_inference_parameters.h_crop,
+                w_crop=self.tiled_inference_parameters.h_crop,
+                h_stride=self.tiled_inference_parameters.h_stride,
+                w_stride=self.tiled_inference_parameters.w_stride,
+                delta=self.tiled_inference_parameters.delta
             )
-        except Exception:
-            import traceback
-            traceback.print_exc()
-
+        )
 
         prompts = []
         for tile in prompt_data:
@@ -176,12 +210,14 @@ class TerramindSegmentationIOProcessor(IOProcessor):
         if not request_id:
             request_id = "offline"
         self.requests_cache[request_id] = {
-            "out_data_format": image_data["out_data_format"],
+            "data_format" : prompt_dict["data_format"],
+            "out_data_format": prompt_dict["out_data_format"],
             "dataset_path": dataset_path,
             "prompt_data": prompt_data,
             "h_img": h_img,
             "w_img": w_img,
             "input_batch_size": input_batch_size,
+            "metadata": metadata,
             "filename": data["filename"][0],
         }
 
@@ -201,6 +237,8 @@ class TerramindSegmentationIOProcessor(IOProcessor):
             request_info = self.requests_cache[request_id]
             del(self.requests_cache[request_id])
 
+        output_format = request_info["out_data_format"]
+
         model_outputs = [output.outputs.data.squeeze(0) for output in model_output]
         outputs = list(zip(request_info["prompt_data"], model_outputs, strict=True))
         output = generate_tiled_inference_output(
@@ -213,14 +251,18 @@ class TerramindSegmentationIOProcessor(IOProcessor):
 
         prediction = output.squeeze(0).argmax(dim=0).numpy()
 
-        # retrieve original image metadata
-        input_image_path = Path(request_info["dataset_path"]) / "DEM" / (request_info["filename"] + "_DEM.tif")
-        out_file_path = Path(self.plugin_config.output_path) / (request_info["filename"] + "_prediction.tif")
-        with rasterio.open(input_image_path, "r") as src:
-            metadata = src.meta
+        metadata = request_info["metadata"]
 
-        write_tiff(prediction, out_file_path, metadata)
+        ret: str
+        if output_format == "path":
+            out_file_path = Path(self.plugin_config.output_path) / (request_info["filename"] + "_prediction.tif")
+            write_tiff(prediction, out_file_path, metadata)
+            ret = str(out_file_path.resolve())
+        elif output_format == "b64_json":
+            ret = to_base64_tiff(prediction, metadata=metadata)
 
-        return RequestOutput(data_format=request_info["out_data_format"],
-                                  data=str(out_file_path.resolve()),
-                                  request_id=request_id)
+        return RequestOutput(
+            data_format=request_info["out_data_format"],
+            data=ret,
+            request_id=request_id,
+        )

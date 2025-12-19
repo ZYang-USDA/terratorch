@@ -282,7 +282,6 @@ def prepare_tiled_inference_input(
     input_batch_size = input_batch.shape[0]
     h_img, w_img = input_batch.shape[-2:]
     ret_device = device or input_batch.device
-    print(f"input_batch.device: {input_batch.device}")
 
     # Move inputs to CPU to avoid out-of-memory errors
     input_batch = input_batch.cpu()

@@ -1,6 +1,6 @@
 models = {
     "prithvi_300m_sen1floods11": {
-        "location": "ibm-nasa-geospatial/Prithvi-EO-2.0-300M-TL-Sen1Floods11",
+        "location": "/models/Prithvi-EO-2.0-300M-TL-Sen1Floods11",
     },
     "prithvi_300m_burnscars": {
         "location": "ibm-nasa-geospatial/Prithvi-EO-2.0-300M-BurnScars",
