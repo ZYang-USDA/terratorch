@@ -7,7 +7,7 @@ include = ["terratorch*"]
 
 [project]
 name = "terratorch"
-version = "v1.2"
+version = "v1.2.1"
 description = "TerraTorch - The geospatial foundation model fine-tuning toolkit"
 license = { "text" = "Apache License, Version 2.0" }
 readme = "README.md"
@@ -134,7 +134,7 @@ geobenchv2 = [
 
 vllm = [
   "geobenchv2==0.9",
-  "vllm==0.11.0",
+  "vllm>=0.12",
 ]
 
 vllm_test = [
