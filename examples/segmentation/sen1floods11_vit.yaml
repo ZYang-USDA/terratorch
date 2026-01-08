@@ -1,10 +1,3 @@
-# This example is deprecated since TerraTorch >= v1.2.
-# We're porting this example to a new set of nice and clean examples for you.
-# 
-# In the meanwhile please checkout the config files under:
-# ./tests/resources/configs
-# 
-
 # lightning.pytorch==2.1.1
 seed_everything: 0
 trainer:
@@ -24,13 +17,12 @@ trainer:
   check_val_every_n_epoch: 1
   log_every_n_steps: 50
   enable_checkpointing: true
-  default_root_dir: <your_path_here>
+  default_root_dir: /prithvi_sen1floods11
 data:
   class_path: terratorch.datamodules.GenericNonGeoSegmentationDataModule
   init_args:
     batch_size: 16
     num_workers: 8
-    constant_scale: 0.0001
     dataset_bands:
       - COASTAL_AEROSOL
       - BLUE
@@ -56,34 +48,37 @@ data:
       - 2
       - 1
       - 0
-    train_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/S2Hand/
-    train_label_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/LabelHand
-    val_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/S2Hand/
-    val_label_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/LabelHand
-    test_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/S2Hand/
-    test_label_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/LabelHand
-    # these must be obtained by running terratorch/examples/scripts/convert_sen1floods11_splits.py on the original split csv files
-    train_split: <sen1floods11_root>/v1.1/splits/flood_handlabeled/flood_train_data.txt
-    test_split: <sen1floods11_root>/v1.1/splits/flood_handlabeled/flood_test_data.txt
-    val_split: <sen1floods11_root>/v1.1/splits/flood_handlabeled/flood_valid_data.txt
+    train_data_root: sen1floods11_v1.1/data/S2L1CHand
+    train_label_data_root: sen1floods11_v1.1/data/LabelHand
+    val_data_root: sen1floods11_v1.1/data/S2L1CHand
+    val_label_data_root: sen1floods11_v1.1/data/LabelHand
+    test_data_root: sen1floods11_v1.1/data/S2L1CHand
+    test_label_data_root: sen1floods11_v1.1/data/LabelHand
+    train_split: sen1floods11_v1.1/splits/flood_train_data.txt
+    test_split: sen1floods11_v1.1/splits/flood_test_data.txt
+    val_split: sen1floods11_v1.1/splits/flood_valid_data.txt
+
     img_grep: "*_S2Hand.tif"
     label_grep: "*_LabelHand.tif"
     no_label_replace: -1
     no_data_replace: 0
     means:
-      - 0.1412956
-      - 0.13795798
-      - 0.12353792
-      - 0.30902815
-      - 0.2044958
-      - 0.11912015
+      - 1087.0
+      - 1342.0
+      - 1433.0
+      - 2734.0
+      - 1958.0
+      - 1363.0
     stds:
-      - 0.07406382
-      - 0.07370365
-      - 0.08692279
-      - 0.11798815
-      - 0.09772074
-      - 0.07659938
+      - 2248.0
+      - 2179.0
+      - 2178.0
+      - 1850.0
+      - 1242.0
+      - 1049.0
+    train_transform:
+      - class_path: albumentations.D4
+      - class_path: albumentations.pytorch.transforms.ToTensorV2
     num_classes: 2
 
 model:
@@ -93,7 +88,6 @@ model:
     model_args:
       backbone: prithvi_eo_v2_300
       backbone_pretrained: true
-      backbone_drop_path: 0.1
       backbone_bands:
         - BLUE
         - GREEN
@@ -114,14 +108,6 @@ model:
       head_dropout: 0.1
       num_classes: 2
     loss: dice
-    aux_heads:
-      - name: aux_head
-        decoder: FCNDecoder
-        decoder_args:
-          decoder_channels: 256
-          decoder_in_index: -1
-          decoder_num_convs: 2
-          head_dropout: 0.1
     aux_loss:
       aux_head: 1.0
     ignore_index: -1
