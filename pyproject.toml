@@ -28,7 +28,8 @@ authors = [
   { name = "Þorsteinn Elí Gíslason"},
   { name = "Raunak Bhansali"},
   { name = "Takao Moriyama"},
-  { name = "Þorsteinn Elí Gíslason"}
+  { name = "Þorsteinn Elí Gíslason"},
+  { name = "Isabelle Wittmann"}
 ]
 classifiers = [
 #  "Development Status :: 2 - Pre-Alpha",
@@ -67,6 +68,7 @@ dependencies = [
   "diffusers",
   "scikit-learn>=1.3.2",
   "scikit-image",
+  "pyarrow",
 ]
 
 
