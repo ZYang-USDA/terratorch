@@ -185,11 +185,7 @@ class TerramindSegmentationIOProcessor(IOProcessor):
         input_data = datamodule.aug(data)["image"]
         prompt_data, tensor_reshape_fn, input_batch_size, h_img, w_img, _ = (
             prepare_tiled_inference_input(input_data,
-                h_crop=self.tiled_inference_parameters.h_crop,
-                w_crop=self.tiled_inference_parameters.h_crop,
-                h_stride=self.tiled_inference_parameters.h_stride,
-                w_stride=self.tiled_inference_parameters.w_stride,
-                delta=self.tiled_inference_parameters.delta
+                **self.tiled_inference_parameters.model_dump(exclude={"average_patches"}),
             )
         )
 

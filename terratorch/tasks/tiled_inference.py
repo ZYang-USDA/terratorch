@@ -365,8 +365,8 @@ def generate_tiled_inference_output(outputs,
 
     output = preds
 
-    # if average_patches:
-    #     output = output / preds_count.unsqueeze(1)
+    if average_patches:
+        output = output / preds_count.unsqueeze(1)
 
     return output
 
