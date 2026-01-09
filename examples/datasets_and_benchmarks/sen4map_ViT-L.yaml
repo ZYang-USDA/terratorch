@@ -1,10 +1,3 @@
-# This example is deprecated since TerraTorch >= v1.2.
-# We're porting this example to a new set of nice and clean examples for you.
-# 
-# In the meanwhile please checkout the config files under:
-# ./tests/resources/configs
-# 
-
 seed_everything: 0
 trainer:
   accelerator: auto
@@ -80,18 +73,13 @@ model:
   init_args:
     model_args:
       decoder: IdentityDecoder
-      pretrained: true
+      backbone_pretrained: true
       backbone: prithvi_eo_v2_300
-      backbone_pretrained_cfg_overlay:
-        file: <PATH/TO/PRETRAINED/PRITHVI_VIT_300M_MODEL_CHECKPOINT>
-      backbone_patch_size: 16
-      backbone_pretrain_img_size: 224
-      # backbone_tubelet_size: 3
+      backbone_ckpt_path: <PATH/TO/PRETRAINED/PRITHVI_VIT_300M_MODEL_CHECKPOINT>
       head_dim_list:
         - 384
         - 128
-      in_channels: 10
-      bands:
+      backbone_bands:
         - BLUE
         - GREEN
         - RED
