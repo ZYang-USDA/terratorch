@@ -62,10 +62,10 @@ class TerraTorchTask(BaseTask):
                 raise ValueError(msg)
             self.model.freeze_encoder()
 
-        if self.hparams["freeze_decoder"]:
+        if self.hparams.get("freeze_decoder", None):
             self.model.freeze_decoder()
 
-        if self.hparams["freeze_head"]:
+        if self.hparams.get("freeze_head", None):
             self.model.freeze_head()
 
     def handle_full_or_tiled_inference(
@@ -182,9 +182,10 @@ class TerraTorchTask(BaseTask):
                 # Move modalities to main dict for unbind
                 for k, v in batch.pop("image").items():
                     batch[k] = v
-            if isinstance(batch["filename"], dict) and len(batch["filename"]):
-                # Get filename from first modality
-                batch["filename"] = list(batch["filename"].values())[0]
+            if batch.get("filename", None):
+                if isinstance(batch["filename"], dict) and len(batch["filename"]):
+                    # Get filename from first modality
+                    batch["filename"] = list(batch["filename"].values())[0]
 
             for key, value in batch.items():
                 if isinstance(value, torch.Tensor):
