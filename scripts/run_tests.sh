@@ -26,10 +26,7 @@ echo "--- 3. Installing Terratorch with Test Dependencies ---"
 pip install --upgrade pip
 pip install -e ".[test]"
 
-echo "--- 4. Running Local Pytest (Sanity Check) ---"
-pytest tests
-
-echo "--- 5. Submitting to LSF (bsub) ---"
+echo "--- 4. Submitting to LSF (bsub) ---"
 # This command sends the job to the cluster
 bsub -gpu "num=1" -Is -R "rusage[ngpus=1, cpu=4, mem=128GB]" \
      -J "terratorch_ci_$BRANCH_NAME" \
