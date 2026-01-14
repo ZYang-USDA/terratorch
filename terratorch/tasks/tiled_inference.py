@@ -306,7 +306,7 @@ def prepare_tiled_inference_input(
         input_batch, h_crop, h_stride, w_crop, w_stride, delta, blend_overlaps, padding
     )
 
-    return coordinates_and_inputs, tensor_reshape, input_batch_size, h_img, w_img, ret_device
+    return coordinates_and_inputs, tensor_reshape, input_batch_size, h_img, w_img, ret_device, delta
 
 def generate_tiled_inference_output(outputs,
                                     input_batch_size: int,
@@ -416,7 +416,7 @@ def tiled_inference(
         torch.Tensor: The result of the inference
     """
 
-    coordinates_and_inputs, tensor_reshape, input_batch_size, h_img, w_img, device = prepare_tiled_inference_input(
+    coordinates_and_inputs, tensor_reshape, input_batch_size, h_img, w_img, device, delta = prepare_tiled_inference_input(
         input_batch=input_batch,
         out_channels=out_channels,
         inference_parameters=inference_parameters,
