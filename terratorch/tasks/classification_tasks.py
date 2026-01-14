@@ -128,6 +128,7 @@ class ClassificationTask(TerraTorchTask):
 
         self.aux_loss = aux_loss
         self.aux_heads = aux_heads
+        self.model_args = model_args
 
         if model is not None and model_factory is not None:
             logger.warning("A model_factory and a model was provided. The model_factory is ignored.")
