@@ -1,10 +1,3 @@
-# This example is deprecated since TerraTorch >= v1.2.
-# We're porting this example to a new set of nice and clean examples for you.
-# 
-# In the meanwhile please checkout the config files under:
-# ./tests/resources/configs
-# 
-
 # lightning.pytorch==2.1.1
 seed_everything: 0
 trainer:
@@ -13,7 +6,7 @@ trainer:
   devices: auto
   num_nodes: 1
   precision: 16-mixed
-  logger: True # will use tensorboardlogger
+  logger: True # will use tensorboard logger
   callbacks:
     - class_path: RichProgressBar
     - class_path: LearningRateMonitor
@@ -24,7 +17,8 @@ trainer:
   check_val_every_n_epoch: 1
   log_every_n_steps: 50
   enable_checkpointing: true
-  default_root_dir: <your_path_here>
+  default_root_dir: ./smp_sen1floods11
+
 data:
   class_path: terratorch.datamodules.GenericNonGeoSegmentationDataModule
   init_args:
@@ -56,16 +50,16 @@ data:
       - 2
       - 1
       - 0
-    train_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/S2Hand/
-    train_label_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/LabelHand
-    val_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/S2Hand/
-    val_label_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/LabelHand
-    test_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/S2Hand/
-    test_label_data_root: <sen1floods11_root>/v1.1/data/flood_events/HandLabeled/LabelHand
-    # these must be obtained by running terratorch/examples/scripts/convert_sen1floods11_splits.py on the original split csv files
-    train_split: <sen1floods11_root>/v1.1/splits/flood_handlabeled/flood_train_data.txt
-    test_split: <sen1floods11_root>/v1.1/splits/flood_handlabeled/flood_test_data.txt
-    val_split: <sen1floods11_root>/v1.1/splits/flood_handlabeled/flood_valid_data.txt
+    train_data_root: sen1floods11_v1.1/data/S2L1CHand
+    train_label_data_root: sen1floods11_v1.1/data/LabelHand
+    val_data_root: sen1floods11_v1.1/data/S2L1CHand
+    val_label_data_root: sen1floods11_v1.1/data/LabelHand
+    test_data_root: sen1floods11_v1.1/data/S2L1CHand
+    test_label_data_root: sen1floods11_v1.1/data/LabelHand
+    train_split: sen1floods11_v1.1/splits/flood_train_data.txt
+    test_split: sen1floods11_v1.1/splits/flood_test_data.txt
+    val_split: sen1floods11_v1.1/splits/flood_valid_data.txt
+
     img_grep: "*_S2Hand.tif"
     label_grep: "*_LabelHand.tif"
     no_label_replace: -1
@@ -89,41 +83,29 @@ model:
   class_path: terratorch.tasks.SemanticSegmentationTask
   init_args:
     model_args:
-      backbone_pretrained: True
-      backbone: prithvi_eo_v1_100
-      backbone_pretrain_img_size: 512
-      backbone_bands:
+      backbone: resnet50
+      pretrained: True
+      bands:
         - BLUE
         - GREEN
         - RED
         - NIR_NARROW
         - SWIR_1
         - SWIR_2
-      backbone_num_frames: 1
+      model: Unet
+      in_channels: 6
       num_classes: 2
       head_dropout: 0.1
       head_channel_list:
         - 256
-      necks:
-        - name: SelectIndices
-          indices:
-            - 2
-            - 5
-            - 8
-            - 11
-        - name: ReshapeTokensToImage
-        # - name: MaxpoolToPyramidal # non learnable alternative
-        - name: LearnedInterpolateToPyramidal
-      decoder: smp_FPN
     loss: ce
-    
     ignore_index: -1
     class_weights:
       - 0.3
       - 0.7
     freeze_backbone: false
     freeze_decoder: false
-    model_factory: EncoderDecoderFactory
+    model_factory: SMPModelFactory
 optimizer:
   class_path: torch.optim.AdamW
   init_args:
