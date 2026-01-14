@@ -15,7 +15,6 @@ This folder includes:
 
 - **Embedding-Based Downstream Task**:
     A demo notebook and sample YAML for a segmentation task using precomputed embeddings: [`downstream_segmentation_burnscars.ipynb`](downstream_segmentation_burnscars.ipynb)  
-  ([Open in Colab](https://colab.research.google.com/github/terrastackai/terratorch/blob/update_examples/examples/embeddings/downstream_segmentation_burnscars.ipynb))
 
 - **Manual Embedding Extraction via Backbone Registry**:
     A short demo showing how to use the TerraTorch Backbone Registry to build a custom pipeline and extract embeddings manually: [`embedding_generation_manual_backbone_registry.ipynb`](embedding_generation_manual_backbone_registry.ipynb)  
