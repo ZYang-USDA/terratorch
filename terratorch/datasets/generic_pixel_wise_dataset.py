@@ -358,7 +358,7 @@ class GenericNonGeoSegmentationDataset(GenericPixelWiseDataset):
         ax[3].axis(axes_visibility)
         ax[3].title.set_text("GT Mask on Image")
         ax[3].imshow(image)
-        ax[3].imshow(label, cmap="jet", alpha=0.5 if embedding_input else 0.3, norm=norm)
+        ax[3].imshow(label, cmap="jet", alpha=0.5 if embedding_input else 0.4, norm=norm)
 
         if prediction is not None:
             ax[4].axis(axes_visibility)
