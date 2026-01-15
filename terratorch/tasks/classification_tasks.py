@@ -13,7 +13,7 @@ from torchmetrics.classification import MulticlassAccuracy, MulticlassF1Score, M
 
 from terratorch.models.model import AuxiliaryHead, Model, ModelOutput
 from terratorch.registry.registry import MODEL_FACTORY_REGISTRY
-from terratorch.tasks.loss_handler import LossHandler
+from terratorch.tasks.loss_handler import LossHandler, CombinedLoss
 from terratorch.tasks.optimizer_factory import optimizer_factory
 from terratorch.tasks.base_task import TerraTorchTask
 
@@ -23,6 +23,19 @@ logger = logging.getLogger("terratorch")
 def to_class_prediction(y: ModelOutput) -> Tensor:
     y_hat = y.output
     return y_hat.argmax(dim=1)
+
+
+def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -> nn.Module:
+    if loss == "ce":
+        return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
+    elif loss == "bce":
+        return  nn.BCEWithLogitsLoss()
+    elif loss == "jaccard":
+        return  JaccardLoss(mode="multiclass")
+    elif loss == "focal":
+        return  FocalLoss(mode="multiclass", normalized=True)
+    else:
+        raise ValueError(f"Loss type '{loss}' is not valid. Only 'ce', 'bce', 'jaccard', or 'focal' supported.")
 
 
 class ClassificationTask(TerraTorchTask):
@@ -49,22 +62,21 @@ class ClassificationTask(TerraTorchTask):
         model_args: dict,
         model_factory: str | None = None,
         model: torch.nn.Module | None = None,
-        loss: str = "ce",
+        loss: str | list[str] | dict[str, float] = "ce",
         aux_heads: list[AuxiliaryHead] | None = None,
         aux_loss: dict[str, float] | None = None,
         class_weights: list[float] | None = None,
-        ignore_index: int | None = None,
+        ignore_index: int | None = -100,
         lr: float = 0.001,
         # the following are optional so CLI doesnt need to pass them
         optimizer: str | None = None,
         optimizer_hparams: dict | None = None,
         scheduler: str | None = None,
         scheduler_hparams: dict | None = None,
-        #
-        #
         freeze_backbone: bool = False,  # noqa: FBT001, FBT002
         freeze_decoder: bool = False,  # noqa: FBT002, FBT001
         freeze_head: bool = False,  # noqa: FBT002, FBT001
+        plot_on_val: bool | int = False, # Deactivate for classification to reduce overhead
         class_names: list[str] | None = None,
         test_dataloaders_names: list[str] | None = None,
         lr_overrides: dict[str, float] | None = None,
@@ -73,19 +85,20 @@ class ClassificationTask(TerraTorchTask):
         """Constructor
 
         Args:
-            Defaults to None.
             model_args (Dict): Arguments passed to the model factory.
             model_factory (str, optional): ModelFactory class to be used to instantiate the model.
                 Is ignored when model is provided.
             model (torch.nn.Module, optional): Custom model.
-            loss (str, optional): Loss to be used. Currently, supports 'ce', 'jaccard' or 'focal' loss.
-                Defaults to "ce".
+            loss (str | list[str] | dict[str, float], optional): Loss to be used. Single loss as string.
+                Multiple losses can be provided as list of strings or as dict with float values defining loss weights.
+                Currently, supports 'ce', 'bce', 'jaccard' or 'focal' loss. Defaults to "ce".
             aux_loss (dict[str, float] | None, optional): Auxiliary loss weights.
                 Should be a dictionary where the key is the name given to the loss
                 and the value is the weight to be applied to that loss.
                 The name of the loss should match the key in the dictionary output by the model's forward
                 method containing that output. Defaults to None.
-            class_weights (Union[list[float], None], optional): List of class weights to be applied to the loss.
+            plot_on_val (bool | int, optional): Whether to plot visualizations on validation and in test.
+                If true, log every epoch. Defaults to False. If int, will plot every plot_on_val epochs.
             class_weights (list[float] | None, optional): List of class weights to be applied to the loss.
                 Defaults to None.
             ignore_index (int | None, optional): Label to ignore in the loss computation. Defaults to None.
@@ -124,7 +137,11 @@ class ClassificationTask(TerraTorchTask):
         if model_factory and model is None:
             self.model_factory = MODEL_FACTORY_REGISTRY.build(model_factory)
 
-        super().__init__(task="classification", path_to_record_metrics=path_to_record_metrics)
+        super().__init__(
+            task="classification",
+            path_to_record_metrics=path_to_record_metrics,
+            plot_on_val=plot_on_val,
+        )
 
         if model:
             # Custom model
@@ -143,24 +160,34 @@ class ClassificationTask(TerraTorchTask):
         Raises:
             ValueError: If *loss* is invalid.
         """
-        loss: str = self.hparams["loss"]
+        loss = self.hparams["loss"]
         ignore_index = self.hparams["ignore_index"]
-
+    
         class_weights = (
             torch.Tensor(self.hparams["class_weights"]) if self.hparams["class_weights"] is not None else None
         )
-        if loss == "ce":
-            ignore_value = -100 if ignore_index is None else ignore_index
-            self.criterion = nn.CrossEntropyLoss(ignore_index=ignore_value, weight=class_weights)
-        elif loss == "bce":
-            self.criterion = nn.BCEWithLogitsLoss()
-        elif loss == "jaccard":
-            self.criterion = JaccardLoss(mode="multiclass")
-        elif loss == "focal":
-            self.criterion = FocalLoss(mode="multiclass", normalized=True)
+
+        if isinstance(loss, str):
+            # Single loss
+            self.criterion = init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
+        elif isinstance(loss, nn.Module):
+            # Custom loss
+            self.criterion = loss
+        elif isinstance(loss, list):
+            # List of losses with equal weights
+            losses = {loss: init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
+                      for loss in loss}
+            self.criterion = CombinedLoss(losses=losses)
+        elif isinstance(loss, dict):
+            # Equal weighting of losses
+            loss, weight = list(loss.keys()), list(loss.values())
+            losses = {loss: init_loss(loss, ignore_index=ignore_index, class_weights=class_weights)
+                      for loss in loss}
+            self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
-            msg = f"Loss type '{loss}' is not valid."
-            raise ValueError(msg)
+            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, list, or "
+                             f"dict[name, weights].")
+
 
     def configure_metrics(self) -> None:
         """Initialize the performance metrics."""
@@ -261,6 +288,10 @@ class ClassificationTask(TerraTorchTask):
         y_hat_hard = to_class_prediction(model_output)
         self.val_metrics.update(y_hat_hard, y)
 
+        if self._do_plot_samples(batch_idx):
+            batch["prediction"] = y_hat_hard
+            self.plot_sample(batch, batch_idx)
+
     def test_step(self, batch: object, batch_idx: int, dataloader_idx: int = 0) -> None:
         """Compute the test loss and additional metrics.
 
@@ -287,6 +318,10 @@ class ClassificationTask(TerraTorchTask):
         self.test_metrics[dataloader_idx].update(y_hat_hard, y)
 
         self.record_metrics(dataloader_idx, y_hat_hard, y)
+
+        if self._do_plot_samples(batch_idx):
+            batch["prediction"] = y_hat_hard
+            self.plot_sample(batch, batch_idx)
 
     def predict_step(self, batch: object, batch_idx: int, dataloader_idx: int = 0) -> Tensor:
 

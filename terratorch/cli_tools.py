@@ -466,20 +466,20 @@ class StateDictAwareModelCheckpoint(ModelCheckpoint):
             save_top_k = 1
 
         super().__init__(
-            dirpath,
-            filename,
-            monitor,
-            verbose,
-            save_last,
-            save_top_k,
-            save_weights_only,
-            mode,
-            auto_insert_metric_name,
-            every_n_train_steps,
-            train_time_interval,
-            every_n_epochs,
-            save_on_train_epoch_end,
-            enable_version_counter,
+            dirpath=dirpath,
+            filename=filename,
+            monitor=monitor,
+            verbose=verbose,
+            save_last=save_last,
+            save_top_k=save_top_k,
+            save_weights_only=save_weights_only,
+            mode=mode,
+            auto_insert_metric_name=auto_insert_metric_name,
+            every_n_train_steps=every_n_train_steps,
+            train_time_interval=train_time_interval,
+            every_n_epochs=every_n_epochs,
+            save_on_train_epoch_end=save_on_train_epoch_end,
+            enable_version_counter=enable_version_counter,
         )
 
     @property
@@ -495,20 +495,6 @@ class StateDictAwareModelCheckpoint(ModelCheckpoint):
 
 
 class MyLightningCLI(LightningCLI):
-    def run_init(self):
-        logger.info("Running custom init command...")
-
-    @property
-    def subcommands(self):
-        return super().subcommands + ["init"]
-
-    def run(self):
-        subcommand = self.config["subcommand"]
-        if subcommand == "init":
-            self.run_init()
-        else:
-            super().run()
-
     def add_arguments_to_parser(self, parser: LightningArgumentParser) -> None:
         parser.add_argument("--predict_output_dir", default=None)
         parser.add_argument("--output_file_prefix", default=None)
@@ -521,7 +507,6 @@ class MyLightningCLI(LightningCLI):
         # enable_checkpointing is True and no checkpointing is included as
         # callback.
         self.config = add_default_checkpointing_config(self.config)
-
         # get the predict_output_dir. Depending on the value of run, it may be in the subcommand
         try:
             config = self.config.predict

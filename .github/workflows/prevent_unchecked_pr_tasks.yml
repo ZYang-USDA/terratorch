@@ -1,0 +1,13 @@
+name: "Check Task List"
+on:
+  pull_request:
+    types: [opened, edited, synchronized, reopened]
+
+jobs:
+  check-tasks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if tasks are incomplete
+        uses: KentaroM/task-list-checker-action@v1.1.0
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}

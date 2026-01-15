@@ -8,7 +8,7 @@ from torch import nn
 
 from terratorch.models.heads import RegressionHead, SegmentationHead
 from terratorch.models.model import AuxiliaryHeadWithDecoderWithoutInstantiatedHead, Model, ModelOutput
-from terratorch.models.utils import pad_images
+from terratorch.models.utils import pad_images, get_image_size
 
 def freeze_module(module: nn.Module):
     for param in module.parameters():
@@ -33,6 +33,7 @@ class PixelWiseModel(Model, SegmentationModel):
         auxiliary_heads: list[AuxiliaryHeadWithDecoderWithoutInstantiatedHead] | None = None,
         neck: nn.Module | None = None,
         rescale: bool = True,  # noqa: FBT002, FBT001
+        image_size_out: tuple[int, int] | None = None,
     ) -> None:
         """Constructor
 
@@ -41,6 +42,8 @@ class PixelWiseModel(Model, SegmentationModel):
             encoder (nn.Module): Encoder to be used
             decoder (nn.Module): Decoder to be used
             head_kwargs (dict): Arguments to be passed at instantiation of the head.
+            patch_size (int, optional): Patch size to be used during inference.
+            padding (str, optional): Padding to be used during inference.
             decoder_includes_head (bool): Whether the decoder already incldes a head. If true, a head will not be added. Defaults to False.
             auxiliary_heads (list[AuxiliaryHeadWithDecoderWithoutInstantiatedHead] | None, optional): List of
                 AuxiliaryHeads with heads to be instantiated. Defaults to None.
@@ -48,6 +51,8 @@ class PixelWiseModel(Model, SegmentationModel):
                 Defaults to None, which applies the identity.
             rescale (bool, optional): Rescale the output of the model if it has a different size than the ground truth.
                 Uses bilinear interpolation. Defaults to True.
+            image_size_out (tuple[int, int] | None): The desired (Height, Width) size of the output image or mask. This is used to ensure the model produces the correct output shape.
+                If set to **None** (default), the size is dynamically determined: either set by the 'image_size' property during the forward pass, or inferred directly from the size of the input image.
         """
         super().__init__()
 
@@ -70,8 +75,18 @@ class PixelWiseModel(Model, SegmentationModel):
             aux_heads = {}
         self.aux_heads = nn.ModuleDict(aux_heads)
 
-        self.neck = neck
+        if neck is not None:
+            self.neck = neck
+        elif hasattr(self.encoder, "prepare_features_for_image_model"):
+            # only for backwards compatibility with pre-neck times.
+            def model_defined_neck(x, **kwargs):
+                return self.encoder.prepare_features_for_image_model(x)  # Drop kwargs
+            self.neck = model_defined_neck
+        else:
+            self.neck = lambda x, image_size: x
+
         self.rescale = rescale
+        self.image_size_out = image_size_out
         self.patch_size = patch_size
         self.padding = padding
 
@@ -100,40 +115,24 @@ class PixelWiseModel(Model, SegmentationModel):
     def forward(self, x: torch.Tensor, **kwargs) -> ModelOutput:
         """Sequentially pass `x` through model`s encoder, decoder and heads"""
 
-        def _get_size(x):
-            if isinstance(x, torch.Tensor):
-                return x.shape[-2:]
-            elif isinstance(x, dict):
-                # Multimodal input in passed as dict (Assuming first modality to be an image)
-                return list(x.values())[0].shape[-2:]
-            elif hasattr(kwargs, 'image_size'):
-                return kwargs['image_size']
-            else:
-                ValueError('Could not infer image shape.')
+        image_size_out = (self.image_size_out
+                          or kwargs.get('image_size', None)
+                          or get_image_size(x))
 
-        image_size = _get_size(x)
-        if isinstance(x, torch.Tensor) and self.patch_size:
-            # Only works for single image modalities
+        if self.patch_size and self.padding is not None:
             x = pad_images(x, self.patch_size, self.padding)
-        input_size = _get_size(x)
+        input_size = get_image_size(x)
 
         features = self.encoder(x, **kwargs)
 
-        # only for backwards compatibility with pre-neck times.
-        if self.neck:
-            prepare = self.neck
-        else:
-            # for backwards compatibility, if this is defined in the encoder, use it
-            prepare = getattr(self.encoder, "prepare_features_for_image_model", lambda x: x)
-
-        features = prepare(features)
+        features = self.neck(features, image_size=input_size)
 
         decoder_output = self.decoder([f.clone() for f in features])
         mask = self.head(decoder_output)
         if self.rescale and mask.shape[-2:] != input_size:
             mask = F.interpolate(mask, size=input_size, mode="bilinear")
         mask = self._check_for_single_channel_and_squeeze(mask)
-        mask = mask[..., :image_size[0], :image_size[1]]
+        mask = mask[..., :image_size_out[0], :image_size_out[1]]
 
         aux_outputs = {}
         for name, decoder in self.aux_heads.items():
@@ -141,7 +140,7 @@ class PixelWiseModel(Model, SegmentationModel):
             if self.rescale and aux_output.shape[-2:] != input_size:
                 aux_output = F.interpolate(aux_output, size=input_size, mode="bilinear")
             aux_output = self._check_for_single_channel_and_squeeze(aux_output)
-            aux_output = aux_output[..., :image_size[0], :image_size[1]]
+            aux_output = aux_output[..., :image_size_out[0], :image_size_out[1]]
             aux_outputs[name] = aux_output
 
 
