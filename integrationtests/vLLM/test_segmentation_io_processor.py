@@ -79,6 +79,7 @@ def test_serving_segmentation_plugin(get_server, model_name, input_name):
         plugin,
         "--model-impl",
         "terratorch",
+        "--enable-mm-embeds"
     ]
 
     server = get_server(model, server_args=server_args)

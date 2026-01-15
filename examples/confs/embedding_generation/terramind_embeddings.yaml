@@ -1,3 +1,10 @@
+# This example is deprecated since TerraTorch >= v1.2.
+# We're porting this example to a new set of nice and clean examples for you.
+# 
+# In the meanwhile please checkout the config files under:
+# ./tests/resources/configs
+# 
+
 # lightning.pytorch==2.1.1
 seed_everything: 0
 trainer:
@@ -80,20 +87,19 @@ predict_output_dir: './'
 model:
   class_path: terratorch.tasks.EmbeddingGenerationTask
   init_args:
-    model: terramind_v1_base 
     model_args:
-      modalities:
+      backbone: terramind_v1_base
+      backbone_modalities:
         - S2L2A
         - S2L1C
         - S1GRD
-      merge_method: mean
-      pretrained: True
+      backbone_merge_method: mean
+      backbone_pretrained: True
+      backbone_use_temporal: True
+      backbone_temporal_pooling: keep
     output_format: parquet
     embed_file_key: file_id
     output_dir: 'output/terramind_embeddings'
     layers: [-1] # Model layers to extract embeddings from, -1 means the last layer
     embedding_pooling: null
     has_cls: False
-    temporal_cfg: 
-      temporal_wrapper: True
-      temporal_pooling: keep
