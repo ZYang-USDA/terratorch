@@ -571,6 +571,7 @@ class ScalarRegressionTask(TerraTorchTask):
                 contained in the parameter name)and the value should be the new lr. Defaults to None.
             path_to_record_metrics (str): A path to save the file containing the metrics log.
         """
+        self.model_args = model_args
         self.aux_loss = aux_loss
         self.aux_heads = aux_heads
         if num_outputs < 1:
