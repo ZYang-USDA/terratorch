@@ -29,7 +29,7 @@ def test_custom_module(input_224):
 
 @pytest.mark.parametrize("case", ["fit", "test", "validate"])
 def test_custom_module_yaml(case):
-    command_list = [case, "-c", f"eexamples/utils/alexnet_custom_model_config.yaml"]
+    command_list = [case, "-c", f"examples/utils/alexnet_custom_model_config.yaml"]
     _ = build_lightning_cli(command_list)
 
     gc.collect()
