@@ -14,7 +14,7 @@ from typing import Any, Optional, Union
 import rasterio
 import torch
 from vllm.config import VllmConfig
-from vllm.entrypoints.openai.protocol import IOProcessorRequest, IOProcessorResponse
+from vllm.entrypoints.pooling.pooling.protocol import IOProcessorRequest, IOProcessorResponse
 from vllm.inputs.data import PromptType
 from vllm.outputs import PoolingRequestOutput
 from vllm.plugins.io_processors.interface import IOProcessor, IOProcessorInput, IOProcessorOutput
@@ -183,7 +183,7 @@ class TerramindSegmentationIOProcessor(IOProcessor):
 
         # Split the input in tiles depending on the tiled inference parameters
         input_data = datamodule.aug(data)["image"]
-        prompt_data, tensor_reshape_fn, input_batch_size, h_img, w_img, _ = (
+        prompt_data, tensor_reshape_fn, input_batch_size, h_img, w_img, _ , delta = (
             prepare_tiled_inference_input(input_data,
                 **self.tiled_inference_parameters.model_dump(exclude={"average_patches"}),
             )
@@ -215,6 +215,7 @@ class TerramindSegmentationIOProcessor(IOProcessor):
             "input_batch_size": input_batch_size,
             "metadata": metadata,
             "filename": data["filename"][0],
+            "delta": delta,
         }
 
         return prompts
@@ -242,7 +243,7 @@ class TerramindSegmentationIOProcessor(IOProcessor):
             input_batch_size=request_info["input_batch_size"],
             h_img=request_info["h_img"],
             w_img=request_info["w_img"],
-            delta=self.tiled_inference_parameters.delta
+            delta=request_info["delta"],
         )
 
         prediction = output.squeeze(0).argmax(dim=0).numpy()
