@@ -52,12 +52,12 @@ def build_2d_sincos_posemb(h, w, embed_dim=1024, temperature=10000.):
 
     Returns positional embedding of shape [B, H, W, D]
     """
-    grid_w = torch.arange(w, dtype=torch.float)
-    grid_h = torch.arange(h, dtype=torch.float)
+    grid_w = torch.arange(w, dtype=torch.get_default_dtype())
+    grid_h = torch.arange(h, dtype=torch.get_default_dtype())
     grid_w, grid_h = torch.meshgrid(grid_w, grid_h, indexing='ij')
     assert embed_dim % 4 == 0, 'Embed dimension must be divisible by 4 for 2D sin-cos position embedding'
     pos_dim = embed_dim // 4
-    omega = torch.arange(pos_dim, dtype=torch.float) / pos_dim
+    omega = torch.arange(pos_dim, dtype=torch.get_default_dtype()) / pos_dim
     omega = 1. / (temperature ** omega)
     out_w = torch.einsum('m,d->md', [grid_w.flatten(), omega])
     out_h = torch.einsum('m,d->md', [grid_h.flatten(), omega])
@@ -869,7 +869,7 @@ class UViT(ModelMixin, ConfigMixin):
         if not torch.is_tensor(timesteps):
             # This requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
             if isinstance(timestep, float):
-                dtype = torch.float if is_mps else torch.float64
+                dtype = torch.get_default_dtype()
             else:
                 dtype = torch.int if is_mps else torch.int64
             timesteps = torch.tensor([timesteps], dtype=dtype, device=sample.device)
