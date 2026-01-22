@@ -6,7 +6,7 @@ from torch import nn
 import torchvision.transforms as transforms
 from terratorch.models.heads import ScalarHead 
 from terratorch.models.model import AuxiliaryHeadWithDecoderWithoutInstantiatedHead, Model, ModelOutput
-from terratorch.models.utils import pad_images
+from terratorch.models.utils import pad_images, get_image_size
 import pdb
 
 
@@ -27,8 +27,8 @@ class ScalarOutputModel(Model, SegmentationModel):
         encoder: nn.Module,
         decoder: nn.Module,
         head_kwargs: dict,
-        patch_size: int = None,
-        padding: str = None,
+        patch_size: int | list[int] | None = None,
+        padding: str = "reflect",
         decoder_includes_head: bool = False,
         auxiliary_heads: list[AuxiliaryHeadWithDecoderWithoutInstantiatedHead] | None = None,
         neck: nn.Module | None = None,
@@ -45,6 +45,8 @@ class ScalarOutputModel(Model, SegmentationModel):
                 AuxiliaryHeads with heads to be instantiated. Defaults to None.
             neck (nn.Module | None): Module applied between backbone and decoder.
                 Defaults to None, which applies the identity.
+            patch_size (int, list[int] | None): Patch size used for automated padding of images. Defaults to None.
+            padding (str): Padding method, defaults to "reflect".
         """
         super().__init__()
         self.task = task
@@ -91,19 +93,9 @@ class ScalarOutputModel(Model, SegmentationModel):
     def forward(self, x: torch.Tensor, **kwargs) -> ModelOutput:
         """Sequentially pass `x` through model`s encoder, decoder and heads"""
 
-        if isinstance(x, torch.Tensor):
-            if self.patch_size:
-                # Only works for single image modalities
-                x = pad_images(x, self.patch_size, self.padding)
-            input_size = x.shape[-2:]
-        elif isinstance(x, dict):
-            # Multimodal input in passed as dict (Assuming first modality to be an image)
-            input_size = list(x.values())[0].shape[-2:]
-        elif hasattr(kwargs, 'image_size'):
-            input_size = kwargs['image_size']
-        else:
-            ValueError('Could not infer image shape.')
-
+        if self.patch_size and self.padding is not None:
+            x = pad_images(x, self.patch_size, self.padding)
+        input_size = get_image_size(x)
         features = self.encoder(x, **kwargs)
 
         features = self.neck(features, image_size=input_size)
@@ -128,6 +120,3 @@ class ScalarOutputModel(Model, SegmentationModel):
             raise Exception(msg)
             
         return ScalarHead(input_embed_dim, **head_kwargs)
-        
-       
-            

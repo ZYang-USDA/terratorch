@@ -34,10 +34,10 @@ class BurnIntensityNonGeoDataModule(NonGeoDataModule):
         batch_size: int = 4,
         num_workers: int = 0,
         bands: Sequence[str] = BurnIntensityNonGeo.all_band_names,
-        train_transform: A.Compose | None | list[A.BasicTransform] = None,
-        val_transform: A.Compose | None | list[A.BasicTransform] = None,
-        test_transform: A.Compose | None | list[A.BasicTransform] = None,
-        predict_transform: A.Compose | None | list[A.BasicTransform] = None,
+        train_transform: A.Compose | None | list = None,
+        val_transform: A.Compose | None | list = None,
+        test_transform: A.Compose | None | list = None,
+        predict_transform: A.Compose | None | list = None,
         use_full_data: bool = True,
         no_data_replace: float | None = 0.0001,
         no_label_replace: int | None = -1,
@@ -52,10 +52,10 @@ class BurnIntensityNonGeoDataModule(NonGeoDataModule):
             batch_size (int, optional): Batch size for DataLoaders. Defaults to 4.
             num_workers (int, optional): Number of workers for data loading. Defaults to 0.
             bands (Sequence[str], optional): List of bands to use. Defaults to BurnIntensityNonGeo.all_band_names.
-            train_transform (A.Compose | None | list[A.BasicTransform], optional): Transformations for training.
-            val_transform (A.Compose | None | list[A.BasicTransform], optional): Transformations for validation.
-            test_transform (A.Compose | None | list[A.BasicTransform], optional): Transformations for testing.
-            predict_transform (A.Compose | None | list[A.BasicTransform], optional): Transformations for prediction.
+            train_transform (A.Compose | None | list, optional): Transformations for training.
+            val_transform (A.Compose | None | list, optional): Transformations for validation.
+            test_transform (A.Compose | None | list, optional): Transformations for testing.
+            predict_transform (A.Compose | None | list, optional): Transformations for prediction.
             use_full_data (bool, optional): Whether to use the full dataset or data with less than 25 percent zeros. Defaults to True.
             no_data_replace (float | None, optional): Value to replace missing data. Defaults to 0.0001.
             no_label_replace (int | None, optional): Value to replace missing labels. Defaults to -1.
