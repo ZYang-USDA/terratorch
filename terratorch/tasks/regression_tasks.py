@@ -183,51 +183,40 @@ def get_module_and_class(path):
     return path_, class_name
 
 
-def init_loss(loss: str, ignore_index: int = None, custom_loss: bool = False, custom_loss_kwargs: dict = None):
-    if custom_loss:
-        assert custom_loss_kwargs, "If you are using a custom loss, the `custom_loss_kwargs` are required."
-        return _instantiate_from_path(loss, **custom_loss_kwargs)
-    elif loss == "mse":
-        return IgnoreIndexLossWrapper(nn.MSELoss(reduction="none"), ignore_index)
-    elif loss == "mae":
-        return IgnoreIndexLossWrapper(nn.L1Loss(reduction="none"), ignore_index)
-    elif loss == "rmse":
-        # IMPORTANT! Root is done only after ignore index! Otherwise, the mean taken is incorrect
-        return RootLossWrapper(IgnoreIndexLossWrapper(nn.MSELoss(reduction="none"), ignore_index), reduction=None)
-    elif loss == "huber":
-        return IgnoreIndexLossWrapper(nn.HuberLoss(reduction="none"), ignore_index)
-    else:
-        raise ValueError(f"Loss type '{loss}' is not valid. Currently, supports 'mse', 'rmse', 'mae', or 'huber' loss.")
 def check_weights_classes(var_weights: Tensor, num_outputs: int):
     if len(var_weights) != num_outputs:
         exception_message = f"Number of weights must correspond to number of variables. Got {len(var_weights)} weights for {num_outputs} variables."
         raise ValueError(exception_message)
 
-def init_loss(loss: str, ignore_index: int = None, var_weights: list[float] = None, num_outputs: int = 1):
-        if loss == "mse":
-            base_criterion = nn.MSELoss(reduction="none")
-        elif loss == "mae":
-            base_criterion = nn.L1Loss(reduction="none")
-        elif loss == "rmse":
-            base_criterion = nn.MSELoss(reduction="none")     
-        elif loss == "huber":
-            base_criterion = nn.HuberLoss(reduction="none")
-        else:
-            exception_message = f"Loss type '{loss}' is not valid. Currently, supports 'mse', 'rmse', 'mae', and 'huber' loss."
-            raise ValueError(exception_message)
+def init_loss(loss: str, ignore_index: int = None, var_weights: list[float] = None, num_outputs: int = 1, custom_loss: bool = False, custom_loss_kwargs: dict = None):
+    if custom_loss:
+        assert custom_loss_kwargs, "If you are using a custom loss, the `custom_loss_kwargs` are required."
+        base_criterion = _instantiate_from_path(loss, **custom_loss_kwargs)
+    elif loss == "mse":
+        base_criterion = IgnoreIndexLossWrapper(nn.MSELoss(reduction="none"), ignore_index)
+    elif loss == "mae":
+        base_criterion = IgnoreIndexLossWrapper(nn.L1Loss(reduction="none"), ignore_index)
+    elif loss == "rmse":
+        # IMPORTANT! Root is done only after ignore index! Otherwise, the mean taken is incorrect
+        base_criterion = RootLossWrapper(IgnoreIndexLossWrapper(nn.MSELoss(reduction="none"), ignore_index), reduction=None)
+    elif loss == "huber":
+        base_criterion = IgnoreIndexLossWrapper(nn.HuberLoss(reduction="none"), ignore_index)
+    else:
+        raise ValueError(f"Loss type '{loss}' is not valid. Currently, supports 'mse', 'rmse', 'mae', or 'huber' loss.")
+
         
-        if var_weights is not None:
-            check_weights_classes(var_weights, num_outputs)
-            base_criterion = WeightedMultivariateLossWrapper(base_criterion, var_weights, reduction="mean")
-            
-        base_criterion = IgnoreIndexLossWrapper(base_criterion, ignore_index) 
+    if var_weights is not None:
+        check_weights_classes(var_weights, num_outputs)
+        base_criterion = WeightedMultivariateLossWrapper(base_criterion, var_weights, reduction="mean")
         
-        if loss == "rmse":
-            # Root after IgnoreIndex
-            base_criterion = RootLossWrapper(base_criterion, reduction=None)
-        
-        # Either weighted mean of the losses or a simple mean
-        return base_criterion
+    base_criterion = IgnoreIndexLossWrapper(base_criterion, ignore_index) 
+    
+    if loss == "rmse":
+        # Root after IgnoreIndex
+        base_criterion = RootLossWrapper(base_criterion, reduction=None)
+    
+    # Either weighted mean of the losses or a simple mean
+    return base_criterion
 
 class PixelwiseRegressionTask(TerraTorchTask):
     """Pixelwise Regression Task that accepts models from a range of sources.
@@ -377,9 +366,8 @@ class PixelwiseRegressionTask(TerraTorchTask):
             losses = {loss: init_loss(loss, ignore_index=ignore_index) for loss in loss}
             self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
-            raise ValueError(
-                f"The loss type {loss} isn't supported. Provide loss as string, list, or dict[name, weights]."
-            )
+            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, nn.Module, list, or "
+                             f"dict[name, weights].")
 
     def configure_metrics(self) -> None:
         """Initialize the performance metrics."""
