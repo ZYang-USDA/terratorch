@@ -6,6 +6,12 @@ In standard TerraTorch workflows, downstream tasks are trained end-to-end on raw
 Embedding workflows decouple this process: With TerraTorch, you can extract EO embeddings from any supported backbone for your own data. These embeddings can then be analyzed, stored, and reused. 
 Lightweight decoder-only pipelines can be trained directly on these precomputed embeddings.
 
+<sub>
+  Note: Embedding workflows in TerraTorch are supported by the
+  <strong>Embed2Scale project</strong>
+  (EU Horizon Europe, Grant No. 101131841; SERI; UKRI).
+</sub>
+
 ### Examples
 This folder includes:
 
