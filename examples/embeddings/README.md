@@ -10,8 +10,7 @@ Lightweight decoder-only pipelines can be trained directly on these precomputed 
 This folder includes:
 
 - **Embedding Generation**:
-    A demo notebook and sample YAML for easy embedding generation in TerraTorch: [`embedding_generation_burnscars.ipynb`](embedding_generation_burnscars.ipynb)  
-  ([Open in Colab](https://colab.research.google.com/github/terrastackai/terratorch/blob/main/examples/embeddings/embedding_generation_burnscars.ipynb))
+    A demo notebook and sample YAML for easy embedding generation in TerraTorch: [`embedding_generation_burnscars.ipynb`](embedding_generation_burnscars.ipynb)
 
 - **Embedding-Based Downstream Task**:
     A demo notebook and sample YAML for a segmentation task using precomputed embeddings: [`downstream_segmentation_burnscars.ipynb`](downstream_segmentation_burnscars.ipynb)  
