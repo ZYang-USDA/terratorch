@@ -1,5 +1,6 @@
 import logging
 from functools import partial
+import warnings
 
 import lightning
 import matplotlib.pyplot as plt
