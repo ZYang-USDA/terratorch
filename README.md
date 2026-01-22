@@ -132,7 +132,7 @@ It will sign the commit with your ID and the check will be met.
 
 <img src="assets/embed2scale_logo.svg"
    alt="Embed2Scale"
-   height="48"
+   height="62"
    style="vertical-align: middle; margin-right: 6px;" />
 <strong>Embed2Scale.</strong>
 The embedding workflow integration and maintenance in TerraTorch are carried out as part of the Embed2Scale project
