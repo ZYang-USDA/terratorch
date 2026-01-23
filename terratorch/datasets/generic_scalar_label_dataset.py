@@ -192,9 +192,9 @@ class GenericScalarLabelDataset(NonGeoDataset, ImageFolder, ABC):
 
         if self.expand_temporal_dimension:
             if self.temporal_channel_major:
-                image = rearrange(image, "h w (channels time) -> time h w channels", channels=len(self.output_bands))
+                image = rearrange(image, "h w (channels time) -> time h w channels", channels=len(self.dataset_bands))
             else:
-                image = rearrange(image, "h w (time channels) -> time h w channels", channels=len(self.output_bands))
+                image = rearrange(image, "h w (time channels) -> time h w channels", channels=len(self.dataset_bands))
         if self.filter_indices:
             image = image[..., self.filter_indices]
 

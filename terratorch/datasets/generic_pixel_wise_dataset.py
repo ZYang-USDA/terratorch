@@ -183,9 +183,9 @@ class GenericPixelWiseDataset(NonGeoDataset, ABC):
         # to channels last
         if self.expand_temporal_dimension:
             if self.temporal_channel_major:
-                image = rearrange(image, "(channels time) h w -> channels time h w", channels=len(self.output_bands))
+                image = rearrange(image, "(channels time) h w -> channels time h w", channels=len(self.dataset_bands))
             else:
-                image = rearrange(image, "(time channels) h w -> channels time h w", channels=len(self.output_bands))
+                image = rearrange(image, "(time channels) h w -> channels time h w", channels=len(self.dataset_bands))
         image = np.moveaxis(image, 0, -1)
         if self.filter_indices:
             image = image[..., self.filter_indices]
