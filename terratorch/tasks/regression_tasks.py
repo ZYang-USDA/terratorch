@@ -449,7 +449,12 @@ class PixelwiseRegressionTask(TerraTorchTask):
                     rgb_modality = getattr(datamodule, "rgb_modality", None) or list(batch["image"].keys())[0]
                     batch["image"] = batch["image"][rgb_modality]
                 for key in ["image", "mask", "prediction"]:
-                    batch[key] = batch[key].cpu()
+                    val = batch[key]
+                    if isinstance(val, torch.Tensor):
+                        batch[key] = val.cpu()
+                    elif isinstance(val, (list, tuple)):
+                        # Move all tensors inside the collection to cpu
+                        batch[key] = [v.cpu() if isinstance(v, torch.Tensor) else v for v in val]
                 sample = unbind_samples(batch)[0]
                 fig = datamodule.val_dataset.plot(sample)
                 if fig:
