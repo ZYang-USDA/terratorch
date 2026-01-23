@@ -95,7 +95,6 @@ test = [
   "diffusers",
   "tokenizers",
   "dask",
-  "pytest-sugar",
   "numba",
   "hdf5plugin",
   "h5netcdf",
@@ -159,6 +158,9 @@ terratorch = "terratorch.__main__:main"
 [[tool.mypy.overrides]]
 module = "timm"
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]u
+norecursedirs = [".venv", "build", "dist", "site-packages"]
 
 [tool.black]
 target-version = ["py310"]
