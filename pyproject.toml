@@ -159,7 +159,7 @@ terratorch = "terratorch.__main__:main"
 module = "timm"
 ignore_missing_imports = true
 
-[tool.pytest.ini_options]u
+[tool.pytest.ini_options]
 norecursedirs = [".venv", "build", "dist", "site-packages"]
 
 [tool.black]
