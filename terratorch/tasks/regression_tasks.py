@@ -446,8 +446,7 @@ class PixelwiseRegressionTask(TerraTorchTask):
             try:
                 datamodule = self.trainer.datamodule
                 batch["prediction"] = y_hat
-                self.plot_sample(batch, batch_idx)
-                print(f"DEBUG: Batch keys available: {batch.keys()}") # Add this
+                batch["image"] = x
                 if isinstance(batch["image"], dict):
                     rgb_modality = getattr(datamodule, "rgb_modality", None) or list(batch["image"].keys())[0]
                     batch["image"] = batch["image"][rgb_modality]
