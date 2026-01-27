@@ -6,12 +6,17 @@ In standard TerraTorch workflows, downstream tasks are trained end-to-end on raw
 Embedding workflows decouple this process: With TerraTorch, you can extract EO embeddings from any supported backbone for your own data. These embeddings can then be analyzed, stored, and reused. 
 Lightweight decoder-only pipelines can be trained directly on these precomputed embeddings.
 
+<sub>
+  Note: Embedding workflows in TerraTorch are supported by the
+  <strong>Embed2Scale project</strong>
+  (EU Horizon Europe, Grant No. 101131841; SERI; UKRI).
+</sub>
+
 ### Examples
 This folder includes:
 
 - **Embedding Generation**:
-    A demo notebook and sample YAML for easy embedding generation in TerraTorch: [`embedding_generation_burnscars.ipynb`](embedding_generation_burnscars.ipynb)  
-  ([Open in Colab](https://colab.research.google.com/github/terrastackai/terratorch/blob/main/examples/embeddings/embedding_generation_burnscars.ipynb))
+    A demo notebook and sample YAML for easy embedding generation in TerraTorch: [`embedding_generation_burnscars.ipynb`](embedding_generation_burnscars.ipynb)
 
 - **Embedding-Based Downstream Task**:
     A demo notebook and sample YAML for a segmentation task using precomputed embeddings: [`downstream_segmentation_burnscars.ipynb`](downstream_segmentation_burnscars.ipynb)  
