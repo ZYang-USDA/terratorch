@@ -1,13 +1,10 @@
 import logging
 from functools import partial
-import warnings
 
 import lightning
 import matplotlib.pyplot as plt
 import torch
 from lightning.pytorch.callbacks import Callback
-import segmentation_models_pytorch as smp
-from functools import partial
 from segmentation_models_pytorch.losses import FocalLoss, JaccardLoss
 from torch import Tensor, nn
 from torchgeo.datasets.utils import unbind_samples
@@ -40,18 +37,13 @@ def init_loss(
         assert custom_loss_kwargs, "If you are using a custom loss, the `custom_loss_kwargs` are required."
         return _instantiate_from_path(loss, **custom_loss_kwargs)
     if loss == "ce":
-        ignore_index = ignore_index if ignore_index is not None else -100  # CrossEntropyLoss cannot handle NoneTypes
         return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
     elif loss == "bce":
-        if ignore_index is not None: warnings.warn("ignore_index not supported for bce loss.")
-        return  nn.BCEWithLogitsLoss(weight=class_weights)
+        return nn.BCEWithLogitsLoss()
     elif loss == "jaccard":
-        if ignore_index is not None: warnings.warn("ignore_index not supported for jaccard loss.")
-        if class_weights is not None: warnings.warn("class_weights not supported for jaccard loss.")
-        return  smp.losses.JaccardLoss(mode="multiclass")
+        return JaccardLoss(mode="multiclass")
     elif loss == "focal":
-        if class_weights is not None: warnings.warn("class_weights not supported for focal loss.")
-        return  smp.losses.FocalLoss(mode="multiclass", normalized=True, ignore_index=ignore_index)
+        return FocalLoss(mode="multiclass", normalized=True)
     else:
         raise ValueError(f"Loss type '{loss}' is not valid. Only 'ce', 'bce', 'jaccard', or 'focal' supported.")
 
@@ -121,9 +113,7 @@ class ClassificationTask(TerraTorchTask):
                 If true, log every epoch. Defaults to False. If int, will plot every plot_on_val epochs.
             class_weights (list[float] | None, optional): List of class weights to be applied to the loss.
                 Defaults to None.
-            ignore_index (int | None, optional): Label to ignore in the loss computation. Using ignore_index for
-                classification is not recommended as these samples are ignored. It is computational more efficient to
-                clean the dataset. Defaults to None.
+            ignore_index (int | None, optional): Label to ignore in the loss computation. Defaults to None.
             lr (float, optional): Learning rate to be used. Defaults to 0.001.
             optimizer (str | None, optional): Name of optimizer class from torch.optim to be used.
                 If None, will use Adam. Defaults to None. Overriden by config / cli specification through LightningCLI.
@@ -240,32 +230,39 @@ class ClassificationTask(TerraTorchTask):
     def configure_metrics(self) -> None:
         """Initialize the performance metrics."""
         num_classes: int = self.hparams["model_args"]["num_classes"]
+        ignore_index: int = self.hparams["ignore_index"]
         class_names = self.hparams["class_names"]
         metrics = MetricCollection(
             {
                 "Accuracy": MulticlassAccuracy(
                     num_classes=num_classes,
+                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Accuracy_Micro": MulticlassAccuracy(
                     num_classes=num_classes,
+                    ignore_index=ignore_index,
                     average="micro",
                 ),
                 "F1_Score": MulticlassF1Score(
                     num_classes=num_classes,
+                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Precision": MulticlassPrecision(
                     num_classes=num_classes,
+                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Recall": MulticlassRecall(
                     num_classes=num_classes,
+                    ignore_index=ignore_index,
                     average="macro",
                 ),
                 "Class_Accuracy": ClasswiseWrapper(
                     MulticlassAccuracy(
                         num_classes=num_classes,
+                        ignore_index=ignore_index,
                         average=None,
                     ),
                     labels=class_names,
@@ -274,6 +271,7 @@ class ClassificationTask(TerraTorchTask):
                 "Class_F1": ClasswiseWrapper(
                     MulticlassF1Score(
                         num_classes=num_classes,
+                        ignore_index=ignore_index,
                         average=None,
                     ),
                     labels=class_names,

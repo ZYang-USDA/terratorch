@@ -183,11 +183,6 @@ def get_module_and_class(path):
     return path_, class_name
 
 
-def check_weights_classes(var_weights: Tensor, num_outputs: int):
-    if len(var_weights) != num_outputs:
-        exception_message = f"Number of weights must correspond to number of variables. Got {len(var_weights)} weights for {num_outputs} variables."
-        raise ValueError(exception_message)
-
 def init_loss(loss: str, ignore_index: int = None, var_weights: list[float] = None, num_outputs: int = 1, custom_loss: bool = False, custom_loss_kwargs: dict = None):
     if custom_loss:
         assert custom_loss_kwargs, "If you are using a custom loss, the `custom_loss_kwargs` are required."
@@ -198,13 +193,13 @@ def init_loss(loss: str, ignore_index: int = None, var_weights: list[float] = No
         base_criterion = IgnoreIndexLossWrapper(nn.L1Loss(reduction="none"), ignore_index)
     elif loss == "rmse":
         # IMPORTANT! Root is done only after ignore index! Otherwise, the mean taken is incorrect
-        base_criterion = RootLossWrapper(IgnoreIndexLossWrapper(nn.MSELoss(reduction="none"), ignore_index), reduction=None)
+        base_criterion  = RootLossWrapper(IgnoreIndexLossWrapper(nn.MSELoss(reduction="none"), ignore_index), reduction=None)
     elif loss == "huber":
-        base_criterion = IgnoreIndexLossWrapper(nn.HuberLoss(reduction="none"), ignore_index)
+        base_criterion =  IgnoreIndexLossWrapper(nn.HuberLoss(reduction="none"), ignore_index)
     else:
         raise ValueError(f"Loss type '{loss}' is not valid. Currently, supports 'mse', 'rmse', 'mae', or 'huber' loss.")
+    
 
-        
     if var_weights is not None:
         check_weights_classes(var_weights, num_outputs)
         base_criterion = WeightedMultivariateLossWrapper(base_criterion, var_weights, reduction="mean")
@@ -217,6 +212,12 @@ def init_loss(loss: str, ignore_index: int = None, var_weights: list[float] = No
     
     # Either weighted mean of the losses or a simple mean
     return base_criterion
+    
+def check_weights_classes(var_weights: Tensor, num_outputs: int):
+    if len(var_weights) != num_outputs:
+        exception_message = f"Number of weights must correspond to number of variables. Got {len(var_weights)} weights for {num_outputs} variables."
+        raise ValueError(exception_message)
+
 
 class PixelwiseRegressionTask(TerraTorchTask):
     """Pixelwise Regression Task that accepts models from a range of sources.
@@ -366,8 +367,9 @@ class PixelwiseRegressionTask(TerraTorchTask):
             losses = {loss: init_loss(loss, ignore_index=ignore_index) for loss in loss}
             self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
-            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, nn.Module, list, or "
-                             f"dict[name, weights].")
+            raise ValueError(
+                f"The loss type {loss} isn't supported. Provide loss as string, list, or dict[name, weights]."
+            )
 
     def configure_metrics(self) -> None:
         """Initialize the performance metrics."""
@@ -444,12 +446,17 @@ class PixelwiseRegressionTask(TerraTorchTask):
             try:
                 datamodule = self.trainer.datamodule
                 batch["prediction"] = y_hat
-                self.plot_sample(batch, batch_idx)
+                batch["image"] = x
                 if isinstance(batch["image"], dict):
                     rgb_modality = getattr(datamodule, "rgb_modality", None) or list(batch["image"].keys())[0]
                     batch["image"] = batch["image"][rgb_modality]
                 for key in ["image", "mask", "prediction"]:
-                    batch[key] = batch[key].cpu()
+                    val = batch[key]
+                    if isinstance(val, torch.Tensor):
+                        batch[key] = val.cpu()
+                    elif isinstance(val, (list, tuple)):
+                        # Move all tensors inside the collection to cpu
+                        batch[key] = [v.cpu() if isinstance(v, torch.Tensor) else v for v in val]
                 sample = unbind_samples(batch)[0]
                 fig = datamodule.val_dataset.plot(sample)
                 if fig:

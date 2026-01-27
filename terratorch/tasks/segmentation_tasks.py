@@ -29,20 +29,18 @@ def to_segmentation_prediction(y: ModelOutput) -> Tensor:
 
 def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -> nn.Module:
     if loss == "ce":
-        ignore_index = ignore_index if ignore_index is not None else -100  # CrossEntropyLoss cannot handle NoneTypes
         return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
     elif loss == "jaccard":
-        if ignore_index is not None: warnings.warn("ignore_index not supported for jaccard loss.")
-        if class_weights is not None: warnings.warn("class_weights not supported for jaccard loss.")
+        if ignore_index is not None:
+            raise RuntimeError(
+                f"Jaccard loss does not support ignore_index, but found non-None value of {ignore_index}."
+            )
         return smp.losses.JaccardLoss(mode="multiclass")
     elif loss == "focal":
-        if class_weights is not None: warnings.warn("class_weights not supported for focal loss.")
         return smp.losses.FocalLoss("multiclass", ignore_index=ignore_index, normalized=True)
     elif loss == "dice":
-        if class_weights is not None: warnings.warn("class_weights not supported for dice loss.")
         return smp.losses.DiceLoss("multiclass", ignore_index=ignore_index)
     elif loss == "lovasz":
-        if class_weights is not None: warnings.warn("class_weights not supported for lovasz loss.")
         return smp.losses.LovaszLoss(mode="multiclass", ignore_index=ignore_index)
     else:
         raise ValueError(

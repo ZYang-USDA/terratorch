@@ -3,7 +3,6 @@ from functools import partial
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn
-import segmentation_models_pytorch as smp
 from torchmetrics import MetricCollection
 from torchmetrics.classification import (
     MultilabelAccuracy,
@@ -38,24 +37,19 @@ def _balanced_binary_cross_entropy_with_logits(outputs: Tensor, targets: Tensor)
 
 def init_loss(loss: str, ignore_index: int = None, class_weights: list = None) -> nn.Module:
     if loss == "bce":
-        if ignore_index: warnings.warn("ignore_index not supported for bce loss.")
-        return nn.BCEWithLogitsLoss(weight=class_weights)
+        return nn.BCEWithLogitsLoss()
     elif loss == "balanced_bce":
-        if ignore_index is not None: warnings.warn("ignore_index not supported for balanced_bce loss.")
-        if class_weights is not None: warnings.warn("class_weights not supported for balanced_bce loss.")
         return _balanced_binary_cross_entropy_with_logits
     elif loss == "ce":
-        ignore_index = ignore_index if ignore_index is not None else -100  # CrossEntropyLoss cannot handle NoneTypes
         return nn.CrossEntropyLoss(ignore_index=ignore_index, weight=class_weights)
+    elif loss == "bce":
+        return  nn.BCEWithLogitsLoss()
     elif loss == "jaccard":
-        if ignore_index is not None: warnings.warn("ignore_index not supported for jaccard loss.")
-        if class_weights is not None: warnings.warn("class_weights not supported for jaccard loss.")
-        return  smp.losses.JaccardLoss(mode="multilabel")
+        return  JaccardLoss(mode="multiclass")
     elif loss == "focal":
-        if class_weights is not None: warnings.warn("class_weights not supported for focal loss.")
-        return  smp.losses.FocalLoss(mode="multilabel", normalized=True, ignore_index=ignore_index)
+        return  FocalLoss(mode="multiclass", normalized=True)
     else:
-        raise ValueError(f"Loss type '{loss}' is not valid. Only 'bce', 'balanced_bce', 'ce', 'jaccard', or "
+        raise ValueError(f"Loss type '{loss}' is not valid. Only 'bce', 'balanced_bce', 'ce', 'bce', 'jaccard', or "
                          f"'focal' supported.")
 
 
@@ -86,7 +80,7 @@ class MultiLabelClassificationTask(ClassificationTask):
                       for loss in loss}
             self.criterion = CombinedLoss(losses=losses, weight=weight)
         else:
-            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, nn.Module, list, or "
+            raise ValueError(f"The loss type {loss} isn't supported. Provide loss as string, list, or "
                              f"dict[name, weights].")
 
     def configure_metrics(self) -> None:
