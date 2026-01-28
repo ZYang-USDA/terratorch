@@ -96,9 +96,9 @@ class GenericScalarLabelDataset(NonGeoDataset, ImageFolder, ABC):
                     "(all timesteps of one band are stacked together), "
                     "set temporal_channel_major=True.")
 
-            if output_bands is None:
+            if dataset_bands is None:
                 raise ValueError(
-                    "Please provide output_bands when expand_temporal_dimension=True."
+                    "Please provide dataset_bands when expand_temporal_dimension=True."
                 )
         if self.split_file is not None:
             with open(self.split_file) as f:
