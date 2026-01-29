@@ -52,8 +52,6 @@ jobs:
           pip install -e .[test]
       - name: List pip dependencies
         run: pip list
-      - name: Cleaning cache
-        run: pip cache purge
       - name: Test with pytest
         run: |
           pytest -s -v tests
