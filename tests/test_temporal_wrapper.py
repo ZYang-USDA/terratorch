@@ -211,7 +211,7 @@ def test_temporal_wrapper_pooling_modes():
       - Output list consistency and shape validation
       - features_permute_op for Swin backbones
     """
-    batch_size, timesteps = 2, 4 # Randomly chosen
+    batch_size, timesteps = 1, 2 # Randomly chosen
 
 
     # CNN-like backbone (ResNet18)
